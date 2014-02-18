@@ -1,0 +1,10 @@
+#!/usr/bin/env perl
+
+while (<STDIN>) {
+    tr/A-Z/a-z/;
+    s,([\s>/]|^)([a-z]),$1\u$2,g;
+    foreach $w ("To", "For", "Be", "Are", "Am", "In", "And", "Or", "The", "A", "An", "Of") {
+	s,\b$w\b,\l$w,g;
+    }
+    print;
+}

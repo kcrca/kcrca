@@ -1,0 +1,157 @@
+bindkey -v			# vi
+
+export FCEDIT=vi		# Default editor for the fc command
+
+HISTSIZE=300
+SAVEHIST=300
+HISTCHARS=!,#
+HISTFILE=~/.zsh_history
+
+FIGNORE='~:.bak:.o:CVS'		# Ignore during file completion
+
+build_prompt() {
+    RP_BEFORE=
+    if [ $USER != arnold -a $USER != root ]; then
+	RP_BEFORE="%U$USER%u@"
+    fi
+
+    RP_AFTER=
+    if [ x"$VIRTUAL_ENV" != x"" ]; then
+	RP_AFTER="["`basename $VIRTUAL_ENV`"]"
+    fi
+
+    PROMPT="%h%(!. #.>) "
+    RPROMPT="%(0?..%S***%s ):$RP_BEFORE%m$RP_AFTER:"
+}
+build_prompt
+
+CMD_NOTIFY_TIME=${CMD_NOTIFY_TIME:-10}
+
+function preexec() {
+    unset cmd
+    local -a cmd
+    cmd=(${(z)1})             # Re-parse the command line
+
+    # Handle job control (thanks to hardescape script)
+    case $cmd[1] in
+    fg|bg|job|%*)
+	local jobspec
+	if [ $cmd[1] = 'fg' ]; then
+	    if (( $#cmd == 1 )); then
+		jobspec="%+"
+	    else
+		jobspec=$cmd[2]
+	    fi
+	else
+	    jobspec=$cmd[1]
+	fi
+
+	#
+	# I tried just using 'jobs -l' to translate the spec into a command, but
+	# I couldn't caputer the output.  That is,
+	#     jobs -l %1 | cat
+	# would result in the error "jobs: %1: no such job".  So I'm parsing things
+	# myself.  This seems like a bug, since "jobs | cat" works just fine.
+	#
+
+	local cmd_text
+
+	jobspec=${jobspec/\%/}
+	case $jobspec in
+	[0-9]*)
+	    cmd_text=$jobtexts[$jobspec]
+	    ;;
+	[-+])
+	    local -i i
+	    i=0
+	    for cmd_text in $jobstates; do
+		i=$(( $i + 1 ))
+		if [ "$cmd_text" != "${cmd_text/:$jobspec:/}" ]; then
+		    cmd_text=$jobtexts[$i]
+		    break
+		fi
+	    done
+	    ;;
+	*)
+	    for cmd_text in $jobtexts; do
+		if [ "$cmd_text" != "${cmd_text%$jobspec}" ]; then
+		    break
+		fi
+	    done
+	    ;;
+	esac
+	cmd=(${(z)cmd_text})
+	;;
+    *)
+	;;	# do not need to look up the command
+    esac
+
+    CMD_NOTIFY_COMMAND=($cmd)
+
+    # ARGH!!!  There is a zsh bug: If there is a preexec function, the elapsed
+    # times for the history are wrong.  So I have to do elapsed time by myself.  Feh.
+    # http://www.zsh.org/mla/workers/2007/msg01246.html
+
+    export CMD_NOTIFY_START=`date +%s`
+}
+
+# If something takes at least $CMD_NOTIFY_TIME seconds, use growl to notify if Terminal not in foreground
+which osascript >&/dev/null && \
+function long_cmd_notify() {
+    result=$?
+
+    # I used to use the commented-out code below, but a bug in zsh broke it (see preexec)
+    # working.  I leave it in because it should be faster, so if the bug gets fixed...
+    # hist=(`fc -l -D -n -1 -1`)
+    # tm=$hist[1]:s/://
+
+    local -i stop start tm
+    stop=`date +%s`
+    start=${CMD_NOTIFY_START:-$stop}
+    tm=$(($stop - $start))
+
+    if [ $tm -ge $CMD_NOTIFY_TIME ]; then
+	local cmd
+	cmd=$CMD_NOTIFY_COMMAND[1]:t
+	case $cmd in
+	vl|vi|man)
+	    ;;	# it doesn't matter how long these took
+	*)
+	    fm=`osascript ~/bin/frontmost.scpt`
+	    if [ "$fm" != "Terminal" ]; then
+		local -i secs=$(($tm % 60))
+		local -i mins=$(($tm / 60))
+		local timestr
+		timestr=`printf 'Time: %d:%02d' $mins $secs`
+		echo Time: $timestr / Frontmost: $fm
+		(
+		    echo $timestr
+		    echo Status: $result
+		) | growlnotify -s -- "$CMD_NOTIFY_COMMAND[@]"
+	    fi
+	esac
+    fi
+}
+
+precmd_functions=(build_prompt long_cmd_notify)
+
+unset RP_BEFORE RP_AFTER
+
+chdir $PWD	# force the change_header (and make it right)
+
+stty intr '^C' erase '^H' kill '^U' quit '^\\' eof '^D' susp '^Z' lnext '^V' stop '^S' start '^Q'
+stty -a | grep -q dsusp && stty dsusp '^Y'
+
+# virtualenv for python development
+export WORKON_HOME=$HOME/.virtualenvs
+test -f /Library/Frameworks/Python.framework/Versions/2.7/bin/virtualenvwrapper.sh && source /Library/Frameworks/Python.framework/Versions/2.7/bin/virtualenvwrapper.sh
+
+# My custom stuff to update the prompt on virtualenv change
+
+# The following lines were added by compinstall
+
+zstyle :compinstall filename '/Users/arnold/.zshrc'
+
+autoload -U compinit
+compinit
+# End of lines added by compinstall

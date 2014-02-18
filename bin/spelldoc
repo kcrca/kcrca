@@ -1,0 +1,2 @@
+#!/bin/sh -x
+javadoc -J-Djava.compiler= -docletpath $HOME/jini/classes -doclet com.sun.jini.tool.spelldoc.SpellDoc -speller 'ispell -l' "$@"

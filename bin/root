@@ -1,0 +1,27 @@
+#!/bin/sh
+
+if [ ! -d CVS ]; then
+    echo "Must be in workspace" 1>&2
+    exit 1
+fi
+
+root=$HOME/Root.$1
+if [ ! -f $root ]; then
+    echo "$root: not found" 1>&2
+    exit 1
+fi
+
+while [ -d CVS ]; do
+    top=$PWD
+    cd ..
+done
+
+echo -n $root:
+
+cd $top
+let 'count = 0'
+for f in `find . -name CVS -print`; do
+    test -f "$f/Root" && cp $root "$f/Root"
+    let 'count = count + 1'
+done
+echo " $count" files

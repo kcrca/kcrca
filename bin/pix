@@ -1,0 +1,2 @@
+#!/bin/sh -x
+open -a /Applications/Pixelmator.app "$@"

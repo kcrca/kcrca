@@ -1,0 +1,7 @@
+set sw=4 ai tildeop
+set exrc
+set tagrelative
+set tags=tags,./tags,../tags,../../tags,../../../tags,../../../../tags
+map  ?\/\*ma/\*\/kmb!'acmt''
+map  :'a,'bs/ *\\$//:'a,'bs/$/ \\/
+syntax off

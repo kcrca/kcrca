@@ -1,0 +1,5 @@
+set fileformats=unix,mac,dos
+augroup filetypedetect
+au BufNewFile,BufRead *.lsl setf lsl
+augroup END
+source ~/.exrc

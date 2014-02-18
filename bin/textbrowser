@@ -1,0 +1,7 @@
+#!/bin/sh
+jars=`ls ~/em/EventMonitor3.0/lib/*.jar`
+jars=`echo $jars | sed -e 's/ /:/g'`
+
+EM=$HOME/em/EventMonitor3.0
+
+java -Xbootclasspath/a:$EM/classes/:$jars:/usr/local/jini/lib/jini-core.jar:/usr/local/jini/lib/jini-ext.jar:/usr/local/jini/lib/sun-util.jar:/usr/local/jini/lib/reggie-dl.jar -Dcom.sun.jini.reggie.proxy.debug=true -Djava.security.policy=/usr/local/jini/policy/policy.all -Dcom.eventmonitor.configDir=$EM/config -jar $HOME/jinitools/lib/JiniLister.jar "$@"

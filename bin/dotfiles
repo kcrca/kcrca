@@ -1,0 +1,53 @@
+#!/bin/bash
+############################
+# .make.sh
+# This script creates symlinks from the home directory to any desired dotfiles in ~/kcrca/dotfiles
+############################
+
+########## Variables
+
+dir=~/kcrca/dotfiles                    # dotfiles directory
+olddir=~/.bak             # old dotfiles backup directory
+
+##########
+
+# create $olddir in homedir
+if [ ! -d $olddir ]; then
+    echo -n "Creating $olddir for backup of any existing dotfiles in ~ ..."
+    mkdir -p $olddir
+fi
+
+# move any existing dotfiles in homedir to $olddir directory, then create symlinks from the homedir to any files in the ~/dotfiles directory
+cd $dir
+for file in *; do
+    df=~/.$file
+    if [ -f $df -o -d $df ]; then
+    	echo Move  $df to $olddir/
+	rm -rf $olddir
+    	mv $df $olddir
+    elif [ -L $df ]; then
+	echo Remove link $df
+	rm $df
+    fi
+    echo "Linking $dir/$file to $df"
+    ln -s $dir/$file $df
+done
+
+install_zsh () {
+# Test to see if zshell is installed.  If it is:
+if [ ! -f /bin/zsh -a ! -f /usr/bin/zsh ]; then
+    # If zsh isn't installed, get the platform of the current machine
+    platform=$(uname);
+    # If the platform is Linux, try an apt-get to install zsh and then recurse
+    if [[ $platform == 'Linux' ]]; then
+        sudo apt-get install zsh
+        install_zsh
+    # If the platform is OS X, tell the user to install zsh :)
+    elif [[ $platform == 'Darwin' ]]; then
+        echo "Please install zsh, then re-run this script!"
+        exit
+    fi
+fi
+}
+
+install_zsh

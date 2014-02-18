@@ -1,0 +1,305 @@
+# Usage:
+#	Frags file ...
+#
+# This script scans source files looking for comments that being and
+# end named fragments.  The comments will start with either "vv" (to
+# start a fragment) or "^^" to end it.  The lines in between will be
+# placed in a file called "frag/xxx" where "xxx" is the name following
+# the ^^ or vv.  For example,
+#
+#	interface FloorWax { }
+#	interface DessertTopping { }
+#
+#	//vv shimmer
+#	interface Shimmer extends FloorWax, DessertTopping {
+#	    double amazingPrice();
+#	}
+#	//^^ shimmer
+#
+# would procude an output file named "frag/shimmer" with the three
+# lines between the two "shimmer" comments.  Any leading whitespace
+# from the first line is removed from all lines in the fragment.  Thus,
+# if the first line of the fragment was indented by eight spaces, all
+# lines in the fragment would have eight spaces removed from the
+# front.  All tabs are expanded into spaces before any the file is
+# examined.
+#
+# If the same fragment name appears in multiple being/end pairs in the
+# same source file, the fragment file will be a concatenation of all
+# the fragments.
+#
+# If lines in the fragment are longer than $MaxLength, a warning is
+# issued.  I set this number to be the length at which a source code
+# line wrapped in my text, and you probably should, too.  I really
+# oughta make this an option...
+#
+# If a file contains no fragment comments at all, a fragment is created
+# with the contents of the entire file and whose name is the same as
+# the file name with the suffix stripped.  Thus "hello.java" with no
+# comments would create a "frag/hello" file with the entire contents of
+# "hello.java".
+#
+# Fragments can be nested.  For example, in
+#
+#	//vv HelloWorld
+#	class HelloWorld {
+#	    public static void main(String[] args) {
+#		//vv StringObjectExample
+#		System.out.println("Hello, world");
+#		//^^ StringObjectExample
+#	    }
+#	}
+#	//^^ HelloWorld
+#
+# two files will be generated, "frag/HelloWorld" containing the entire
+# file (minus the frag comments) and "frag/StringObjectExample".
+# containing only one line.  Each frag is treated independently, so the
+# StringObjectExample fragment will have its leading whitespace
+# stripped since the System.out.println is the first line of *its*
+# fragment, but in HelloWorld that line will be indented eight spaces.
+#
+# If no files are specified on the command line, all files ending in
+# .java and .isbad are scanned for fragments.
+#
+
+# The following lines are designed to run perl on this script, no
+# matter which shell the script is accidentally run under.  The point
+# here is this: The normal way to invoke perl on a script is to put
+# a line starting with #! at the begging of the script that invokes
+# perl, as in "#!/usr/bin/perl".  The problem with this is that the
+# script then hard codes the location of perl into itself, and when
+# that changes the script breaks (and rather mysteriously at that).
+# So this script purposefully specifies *no* interpreter at the top,
+# and then adapts to whatever shell is running to get to perl.  (I
+# tried putting #!/bin/sh at the top to guarantee the shell, but perl
+# is too clever by half -- when the shell script executes perl, perl
+# looks at the #! line and says "this is a shell script" and invokes
+# the shell.)
+#
+# Yes this is ugly, but it is an Officially Certified Hack(TM), so
+# no purist, anti-hacker, ivory tower kvetching.
+
+eval '(exit $?0)' && eval 'exec perl -S $0 ${1+"$@"}'
+    & eval 'exec perl -S $0 $argv:q'
+	    if 0;
+
+
+require 'getopts.pl';
+
+$ErrCnt = 0;			# how many errors have we seen?
+$MaxLength = 60;		# greater than this causes warning
+
+&Getopts('d:');
+$FragDir = ($opt_d ? $opt_d : "frag");
+
+@files = ($#ARGV < 0 ? <*.java *.isbad> : @ARGV);
+
+foreach $SrcFile (@files) {
+    &process();
+}
+exit($ErrCnt);
+
+sub process
+{
+    local ($wholeFile) = @_;
+    local ($added, $skipped, $skipLines);
+
+    $cmd = "expand $SrcFile";			# cmd to expand tabs to spaces
+    open(SRC, "$cmd |") || die("$cmd: $!");	# build into the script someday
+
+    &init_output($SrcFile);			# reset output parameters
+    &add_output(&frag_file($SrcFile)) if ($wholeFile);
+
+  line:
+    while (<SRC>) {				# read the entire source file
+
+	# this has to be able to handle C, C++, and HTML comments
+	#        /-------------------------------------------leading spaces
+	#        |      -------------------------------------start comment
+	#        |      |      /-----------------------------spaces allowed
+	#        |      |      |      /----------------------"vv" or "^^"
+	#        |      |      |      |     /----------------at least one space
+	#        |      |      |      |     |    /-----------frag name
+	#        |      |      |      |     |    |         /-end C++ or HTML
+	#        ^   ___^___   ^  ____^___  ^  __^__  _____^___
+	#       / \ /       \ / \/        \/ \/     \/         \
+	if (!m,^\s*(//|/\*|<!)\s*([v^][v^])\s+([^ ]+)\s*(\*/|>)?\n,) {
+	    if (m,^\s*//\s*COMPOSITE_ADD\s*([0-9]*),) {
+		$add = ($1 ? $1 : 1);
+		$added += $add;
+		for ($i = 0; $i < $add; $i++) {
+		    &output("\n")
+		}
+		next line;
+	    } elsif (m,^\s*//\s*COMPOSITE_REMOVE\s*([0-9]*),) {
+		$skipLines = $1 + 1;
+		$skipped += $skipLines;
+		next line;
+	    }
+	    &output($_) if ($skipLines-- <= 0);
+	} else {
+	    ($op, $file) = ($2, $3);
+	    if ($op eq 'vv') {
+		&add_output($file);		# add new output file
+	    } elsif ($op eq '^^') {
+		&rem_output($file);		# remove output file
+	    } else {
+		die("how did this happen? op == '$op'!");
+	    }
+	}
+    }
+    close(SRC) || die("$cmd: $!");		# done expanding
+    &rem_output(&frag_file($SrcFile)) if ($wholeFile);
+    &end_output();				# finish off pending frags
+
+    $skipped += 0;				# force into numeric variable
+    $added += 0;				# force into numeric variable
+    print "*** skipped $skipped, added $added for compositing\n"
+	if ($skipped || $added)
+}
+
+#
+# init_output:
+#	Initialize the output for a new file.
+#
+sub init_output
+{
+    $File = @_[0];	# remember the file name
+    $Fcnt = 0;		# count of fragments in this file
+    undef %Files;	# forget any frag names from previous file
+    undef %Closed;	# forget any closed files from previous file
+    undef %Crop;	# forget any croppings from previous file
+}
+
+#
+# add_output:
+#	Add a new ouptput fragment file for subsequent lines.  Called
+#	when a vv comment is encountered
+#
+sub add_output
+{
+    local ($file) = @_;				# frag file (leaf) name
+    local ($mode);				# adding or starting anew
+    local ($frag) = &frag_file($file);		# full path to frag file
+
+    if ($Files{$file} && !$Closed{$file}) {	# redundant add
+	die("Adding file already in scope: $file");
+    }
+    die("$file: Frag names should have no suffix") if ($file =~ /\./);
+    if ($Closed{$file}) {			# has been closed, so adding
+	$mode = '>>';				# open in append mode
+	$Closed{$Files{$file}} = $Closed{$file} = 0;
+    } else {					# never been closed, so new frag
+        $mode = '>';				# open in truncate/create mode
+	$Files{$file} = "FILE" . $Fcnt++;
+    }
+    open($Files{$file}, "$mode$frag") || die("$File($file): $!: $frag");
+}
+
+#
+# frag_file:
+#	Return the file name for the given frag.  Usually this is the
+#	fragment name from an vv or ^^ comment, but it can be the file
+#	name of the containing file, since this is also used for
+#	creating full-file fragments
+#
+sub frag_file
+{
+    local ($frag) = @_;
+
+    $frag =~ s,.*/,,;
+    $frag =~ s/\.[^.]+$//;
+    return "$FragDir/$frag";
+}
+
+#
+# rem_output:
+#	Remove a file from the output list.  Called when a ^^ comment
+#	is encountered.
+#
+sub rem_output
+{
+    local ($file) = @_;
+
+    if (!$Files{$file} || $Closed{$file}) {
+	die("Removing file not in scope: $file")
+    }
+    close($Files{$file});
+    $Closed{$Files{$file}} = $Closed{$file} = 1;
+}
+
+#
+# output:
+#	Output a single line to every fragment currently in scope.
+#
+sub output
+{
+    local ($_) = @_;
+    local ($f, $line);
+
+    #
+    # %Files -- the list of known files (usually open)
+    # %Closed -- the list of closed files
+    # %Crop -- the stuff to crop off the beginning of each line for a
+    #	a given file (e.g., the whitespace to remove)
+    #
+    foreach $f (values(%Files)) {
+	next if ($Closed{$f});
+	if (!$Crop{$f}) {
+	    $Crop{$f} = (/^(\s+)/ ? $1 : '^');
+	}
+	$line = $_;				# $line stores the output line
+	$line =~ s/$Crop{$f}//;			# crop off what needs cropping
+	print $f $line;				# print to the file
+	&check_line($f, $line);			# ensure width is valid
+    }
+}
+
+#
+# check_line:
+#	Check to see that the line lengh is <= $MaxLength
+#
+sub check_line
+{
+    local ($frag, $line) = @_;
+    local ($warn, $mark);
+
+    # we use $MaxLength + 1 because length() includes the newline
+    if (length($line) > $MaxLength + 1) {
+	$warn = "***** $SrcFile($frag): line too long ";
+	if (length($warn) < $MaxLength) {
+	    $mark = $warn;
+	    $warn = '';
+	} else {
+	    $warn .= "\n";
+	    $mark = '';
+	}
+	while (length($mark) < $MaxLength - 1) {
+	    $mark .= '-';
+	}
+	$mark .= '|';
+	print "$warn$mark\n$line";
+    }
+}
+
+#
+# end_output:
+#	End all output.  If there were vv comments in the file,
+#	ensure that all had a matching ^^ comment.  If there were
+#	no fragments, creat the full file fragment.
+#
+sub end_output
+{
+    local ($f, $j);
+
+    if ($Fcnt == 0) {
+	&process("wholeFile");
+    } else {
+	foreach $f (keys(%Files)) {
+	    if (!$Closed{$f}) {
+		$ErrCnt++;
+		print "open files at end of $File: $f\n";
+	    }
+	}
+    }
+}

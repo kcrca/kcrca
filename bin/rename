@@ -1,0 +1,106 @@
+#!/usr/bin/env python
+
+import dircache
+import os
+import re
+import sys
+
+from optparse import OptionParser
+
+def number(new):
+    if options.num_len == 0:
+	return new
+
+    match = num_at_end.match(new)
+    if not match:
+	return new
+
+    parts = match.groups()
+
+    if len(parts[1]) == 0 and not options.renumber:
+	return new
+
+    if not options.renumber:
+	num = int(parts[1])
+    else:
+	num_key = parts[0] + '#' + parts[2]
+	if numbers.has_key(num_key):
+	    num = numbers[num_key]
+	else:
+	    num = 0
+	numbers[num_key] = num + 1
+    return "%s%0*d%s" % (parts[0], options.num_len, num, parts[2])
+
+
+def matches(file):
+    try:
+	for pat in options.matches:
+	    if re.search(pat, file):
+		return not options.no_matches
+	return options.no_matches
+    except TypeError:
+	print "TypeError"
+	return True	# matches is not defined, so all match
+
+
+
+def renameInDir(dir):
+    all = dircache.listdir(dir)
+    ann = all[:]
+    dircache.annotate('.', ann)
+
+    for file in ann:
+	if dir != '.':
+	    file = dir + os.path.sep + file
+	if file[-1] == '/':
+	    if (options.recurse):
+		if dir == '.':
+		    renameInDir(file[0:-1])
+		else:
+		    renameInDir(dir + os.path.sep + file[0:-1])
+	    continue
+
+	if not matches(file):
+	    continue
+
+	new = file
+	for change in changes:
+	    new = re.sub(change[0], change[1], new)
+	new = number(new)
+
+	if new != file:
+	    if options.no_exec:
+		print "rename " + file + " " + new
+	    else:
+		os.renames(file, new)
+
+
+parser = OptionParser()
+parser.add_option("-d", "--dir", action="store", default='.',
+		  help="work in this dir")
+parser.add_option("-n", "--no_exec", action="store_true", default=False,
+		  help="only print, don't do")
+parser.add_option("-l", "--num_len", type="int", default=0,
+		  help="minimum number length")
+parser.add_option("-r", "--renumber", action="store_true",
+		  help="renumber files with numbers (-l defaults to 3)")
+parser.add_option("-m", "--matches", action="append",
+		  help="only lines that match this pattern")
+parser.add_option("-v", "--no_matches", action="store_true",
+		  help="exclude lines that match the pattern")
+parser.add_option("-R", "--recurse", action="store_true",
+		  help="act recursively")
+(options, args) = parser.parse_args()
+if options.renumber and options.num_len == 0:
+    options.num_len = 3
+
+changes = []
+while len(args) > 0:
+    fr = args.pop(0)
+    to = args.pop(0)
+    changes.append([fr, to])
+
+num_at_end = re.compile('([^/]*\D)(\d*)(\.[^.]*)$')
+numbers = {}
+
+renameInDir(options.dir)

@@ -1,0 +1,15 @@
+#!/bin/zsh
+if [ x"$1" = x"-f" ]; then
+    shift
+    force=yes
+fi
+
+for f in "$@"; do
+    bak="$f".bak
+    if [ ! -f "$bak" -o ! -z "$force" ]; then
+	echo cp "$f" "$bak"
+	cp "$f" "$bak"
+    else
+	echo "$bak" already exists
+    fi
+done

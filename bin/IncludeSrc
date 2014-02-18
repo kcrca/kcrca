@@ -1,0 +1,669 @@
+# Usage:
+#	IncludeSrc [-v] [-[sc] pp] [-[bf] suf] [-BFS] [-n] [-o file_list]
+#	    [-m type ] [doc/book/dir ...]
+#
+# This script is designed to include source code fragments in Frame
+# documents.  It uses fmbatch to save the file as MIF and then looks
+# through the MIF document for two paragraph styles, Source and Code.
+# (Both names can be changed with options.)  Source paragraphs contain
+# the name of the fragment to be included at that point, and Code
+# paragraphs contain the code itself, with the fragment name embedded
+# at the end in conditional text.
+#
+# When such a pargarph is encountered in the text, the paragraph is
+# read and the fragment name extracted.  The name is converted to a
+# pathname of a fragment file in the form "src/frag/<frag_name>" where
+# "<frag_name>" is the name of the fragment stored in the paragraph.
+# If that file exists, the program 'prog2mif' is run to generate new
+# MIF code for that fragment, and the original paragraph is replaced by
+# the new contents in a Code paragraph containing the fragment name in
+# conditional text.  If it does not exist, the original paragraph is
+# replaced by a Source paragraph containing the fragment name.
+#
+# Thus, a document contains three (three? yes, three) kinds of
+# paragraphs:
+#
+#	* Source paragraphs with fragment names that name non-existent
+#	  fragments.
+#	* Code paragraphs without fragment names (unaltered by this script).
+#	* Code paragraphs with fragment names, which contain the
+#	  current contents of the program fragment.
+#
+# If a processed document is a book (i.e., it has the book suffix
+# '.bk'), its non-generated component parts are processed for
+# inclusion, and then the books generated files are re-generated.
+#
+# If a processed "document" is a directory, it is scanned for books
+# (again, files ending in '.bk') and/or frame documents (files ending
+# in '.fm') and those documents are processed.  If there are no documents,
+# nothing is processed.
+#
+# If nothing is specified, the directory '.' is scanned for documents.
+#
+# The options are:
+#
+#   -v		Verbose output (watch it work)
+#   -s pp	The name of the Source paragraph is "pp"
+#   -c pp	The name of the Code paragraph is "pp"
+#   -b suf	The suffix for books is ".suf" (default 'bk')
+#   -f suf	The suffix for documents is ".suf" (default 'fm')
+#   -B		Treat all arguments as books
+#   -F		Treat all arguments as documents
+#   -S		Make all paragraphs of type Source
+#   -n		No optimizations: do everything
+#   -o file	Put a list of the files processed into "file"
+#   -m type,...	Mark code with tag types "type" (default Header/Footer $1)
+#   -d dir	Use "dir" instead of "src" as the place to look for "frag" dir
+#   -M		Only generate the MIF -- do not include the source or resave
+#   -D		Only generate the doc file from the MIF
+#   -X dir	Extract the frags, putting them in "dir"
+#   -p		The path for the prog2mif program
+#
+# The implementation uses fmbatch as an drivable interface.  fmbatch
+# seems to put its output on /dev/tty, not stdout, so we have to use a
+# different technique to know when it is done with something.  When we
+# are done with a set of commands, we have fmbatch create a file in
+# /tmp using the system command "touch".  Then, after sending the
+# commands, we wait for that file to appear.  When it does, we know the
+# fmbatch sequence is finished, and we can continue.  S[l]ick, huh?
+#
+
+# The following lines are designed to run perl on this script, no
+# matter which shell the script is accidentally run under.  The point
+# here is this: The normal way to invoke perl on a script is to put
+# a line starting with #! at the begging of the script that invokes
+# perl, as in "#!/usr/bin/perl".  The problem with this is that the
+# script then hard codes the location of perl into itself, and when
+# that changes the script breaks (and rather mysteriously at that).
+# So this script purposefully specifies *no* interpreter at the top,
+# and then adapts to whatever shell is running to get to perl.  (I
+# tried putting #!/bin/sh at the top to guarantee the shell, but perl
+# is too clever by half -- when the shell script executes perl, perl
+# looks at the #! line and says "this is a shell script" and invokes
+# the shell.)
+#
+# Yes this is ugly, but it is an Officially Certified Hack(TM), so
+# no purist, anti-hacker, ivory tower kvetching.
+
+eval '(exit $?0)' && eval 'exec perl -S $0 ${1+"$@"}'
+    & eval 'exec perl -S $0 $argv:q'
+	    if 0;
+$progDir = $0;
+$progDir =~ s,/[^/]*$,,;
+push(@INC, $progDir);
+
+require 'assert.pl';
+require 'stat.pl';
+require 'getopts.pl';
+require 'Frame.pl';
+
+&globals();		# set up the global variables (parse options)
+&process_files();	# process the command line arguments (doc/book/dir)
+&cleanup();		# cleanup everything afterwards
+exit(0);		# everything else dies, and hence gives non-zero exit
+
+#
+# process_files:
+#	Process each file specified on the command line
+#
+sub process_files
+{
+    @frame_docs = &frame_docs();		# get the list of frame docs
+    &check_lock(@frame_docs)			# make sure none are locked
+	    if (!$MIFOnly && !$Xdir);
+
+    &fm_start() if (!$Xdir && !$ToRef);		# start up fmbatch communication
+
+    &unbuffer('STDOUT');
+
+    foreach $file (@frame_docs) {
+	if ($AllAreBooks || $file =~ /.$BookSuffix/) {
+	    &process_book($file);
+	} else {
+	    &process_doc($file);
+	}
+    }
+}
+
+#
+# process_book:
+#	Process a single book.  This requires saving the book as a mif
+#	file and scanning it for non-generated files.
+#
+sub process_book
+{
+    local ($book) = @_;				# the book name
+    local ($mif) = &mif_of($book);		# it's mif file
+    local (@docs);				# list of all docs
+    local ($doc);
+    local (@genned);
+
+    print FILE_LIST "$book\n" if ($FileList);
+    &to_mif($book) if (!$DocOnly);		# create the mif file
+    open(MIF, "$mif") || &die("$mif: $!");
+    while (<MIF>) {
+	if (/FileName `<c\\>(.*)'>/) {		# this is a file name
+	    push(@docs, $1);
+	} elsif (/FileNameSuffix `(.*)'>/) {	# this is a genned file suffix
+	    push(@genned, pop(@docs));		# so the last file was genned
+	}
+    }
+
+    &check_lock(@docs, @genned) if (!$MIFOnly);	# nothing should be locked
+    foreach $doc (@docs) {			# process non-genned docs
+	&process_doc($doc);
+    }
+
+    return if ($MIFOnly);
+
+    if ($DocOnly) {
+	&from_mif($book);
+	return;
+    }
+
+    print "Updataing $book";
+    &fm_cmd(					# generate the genned docs
+	"Open $book",				# this gets closed by something
+	"Update $book",
+	"Save $book"
+    );
+    if ($FileList) {
+	local ($f);
+
+	foreach $f (@genned) {
+	    print FILE_LIST $f, "\n";
+	}
+    }
+
+    print "\n";
+}
+
+#
+# process_doc:
+#	Process a single doc file.  This requires saving the thing as
+#	mif, and then doing the paragraph replacement described above.
+#	We only regenerate the original if anything was changed.
+#
+sub process_doc
+{
+    local ($doc) = @_;
+    local ($mif) = &mif_of($doc);
+
+    print FILE_LIST "$doc\n" if ($FileList);
+    &to_mif($doc) if (!$DocOnly && !$Xdir && !$ToRef);	# make the mif file
+    return if ($MIFOnly);
+    if ($DocOnly) {
+	&from_mif($doc);
+	return;
+    }
+    if (!$Optimize || &include_source("$mif")) {# if there was a change
+	&from_mif($doc) if (!$ToRef);			# convert it back
+    } elsif (!$Xdir) {
+	print "$doc unchanged\n";
+    }
+}
+
+#
+# include_source:
+#	This drives the paragraph replacement.  It creates a new file
+#	to contain the generated mif, and then searches for Source and
+#	Code paragraphs.  When it finds one, it asks &prog2mif() to
+#	replace it with the current contents.  If that made a change,
+#	then it replaces the original with the new; otherwise it just
+#	removes the new.
+#
+sub include_source
+{
+    local ($old) = @_;
+    local ($new) = "$old.new";
+    local ($changed);
+
+    print "$old\n" if ($Verbose);
+
+    open(OLD, "<$old") || &die("$old: $!");
+    $new = "/dev/null" if ($Xdir);
+    open(NEW, ">$new") || &die("$new: $!");
+
+    &setup_prog2mif();				# initialize prog2mif conversion
+    $changed = ($Optimize ? 0 : 1);
+    while (<OLD>) {
+	if (/<PgfTag `($SourcePP|$CodePP)'>/) {
+	    $changed |= &prog2mif($_, $1);
+	} else {				# pass other lines unchanged
+	    print NEW;
+	}
+    }
+
+    close(OLD);
+    close(NEW);
+
+    if ($changed) {
+	system("mv $new $old");
+    } else {
+	unlink($new);
+    }
+    return $changed;
+}
+
+#
+# setup_prog2mif:
+#	Do any setup &prog2mif() requires
+#
+sub setup_prog2mif
+{
+    $PPCnt = 0;			# Count number of pp's encountered
+}
+
+#
+# prog2mif:
+#	The workhorse routine.  This reads in the paragraph and then
+#	generates a replacement.  It returns 1 if this was a change,
+#	otherwise it returns 0.  The first two Source/Code paragraphs
+#	it encounters will be from the paragraph catalog, not the text,
+#	so we just copy them unchanged.
+#
+sub prog2mif
+{
+    local ($startline, $tag) = @_;
+    local ($endpat);
+    local ($frag_name, $frag_src) = '';
+    local ($just_copy);
+    local (@pp);		# original paragraph
+    local (@p2m);		# replacement paragraph
+    local ($_);			# I want to be working on my own copy
+    local ($tag_beg, $tag_end);
+
+    #
+    # You know you've hit the end of the paragraph when you find a '>'
+    # that is one space less indented, since the PgfTag is enclosed
+    # inside the Paragraph, and we only get here when we see the PgfTag
+    # line.  $endpat is that closing '>' pattern, but since MIF may
+    # have a comment after the '>' we have to use this as an initial
+    # pattern, not an exact match
+    #
+
+    $endpat = $startline;
+    $endpat =~ s/<.*\n/>/;
+    $endpat =~ s/^ //;
+
+    $PPCnt++;			# this is another paragraph
+    $just_copy = ($PPCnt <= 2);	# just copy catalog defs of Code and Source
+
+    #
+    # Read in the paragraph, starting with the PfgTag line we were handed
+    #
+
+    $_ = $startline;
+    push(@pp, $_);
+    while (<OLD>) {
+	push(@pp, $_);
+	last if ($_ =~ /^$endpat/);
+    }
+
+    if ($just_copy) {		# if we're just copying the defs, we're done
+	print NEW @pp;
+	return 0;
+    }
+
+    #
+    # Get the fragment name, which lives in different places for the
+    # different paragraph styles.
+    #
+
+    if ($tag eq $SourcePP) {
+	# The only string in the paragraph should be the frag name
+	local ($i);
+
+	$frag_name = '';
+	foreach $i (0..$#pp) {
+	    if ($pp[$i] =~ /<String `(.*)'/) {
+		$frag_name = $1;
+		last;
+	    }
+	}
+	if ($Xdir) {
+	    print STDERR "Warning: $SourcePP \"$frag_name\", ignoring\n";
+	    print NEW @pp;
+	    return;
+	}
+    } else {
+	# If it doesn't have a FragName tag, it must be hand-typed
+	local ($i, $nearby, $_);
+
+	$nearby = 0;
+	$frag_name = '';
+	foreach $i (0..$#pp) {
+	    $_ = $pp[$i];
+	    if (/FTag `'/) {
+		$nearby = 0;
+		$tag_beg = $i - 2;
+	    } elsif ($nearby) {
+		if (/<String `(.*)'>/) {
+		    $frag_name = $1;
+		    $tag_end = $i + 6;
+		    last;
+		}
+	    } elsif (/FTag `FragName'/) {
+		$nearby++;
+	    }
+	}
+	if ($frag_name eq '') {
+	    print NEW @pp;
+	    return 0;
+	}
+    }
+
+    $frag_name =~ s/^\s*//;			# junk any surrounding space
+    $frag_name =~ s/\s*$//;
+    &assert($frag_name ne '');			# we'd better have something
+
+    if ($frag_name =~ /\//) {			# if the name contains a dir
+	$frag_src = "$Src/$frag_name";		# it is complete --
+    } else {					# otherwise
+	$frag_src = "$Src/frag/$frag_name";	# look in the frag dir
+    }
+    $frag_src .= '.mif' if ($ToRef);
+
+    if ($Xdir) {
+	local ($xpath) = $frag_src;
+	$xpath =~ s,^$Src,$Xdir,;
+	&mif2prog($xpath, $tag_beg, $tag_end, @pp);
+	return 0;
+    }
+
+    #
+    # Put in the correct new paragraph.  If the fragment isn't found,
+    # this is a simple Source paragraph.  Otherwise it is a Code
+    # paragraph as generated by prog2mif, with header and footer lines
+    # stripped.
+    #
+
+    local ($frag_marker) = &marker_name($frag_name);
+
+    local ($marker_text) = '';
+    local ($add_end) = 0;
+
+    foreach $marker (@Markers) {
+	$marker_text .=
+	    "   <Marker\n" .
+	    "    <MType 0>\n" .
+	    "    <MTypeName `$marker'>\n" .
+	    "    <MText `$frag_marker'>\n" .
+	    "    <MCurrPage `89'>\n" .
+	    "   > # end of Marker\n";
+    }
+
+    if ($AllSource || ! -f $frag_src || $ToRef) {
+	if (!$AllSource && !$ToRef) {
+	    print STDERR "*** $frag_src not found ($old)\n";
+	    if (!$NotFound{$old}) {			# first for this file
+		$NotFound{$old} = $frag_name;
+	    } else {
+		$NotFound{$old} .= ", $frag_name";
+	    }
+	}
+	if ($ToRef) {
+	    local ($ref_path) = $frag_src;
+	    $ref_path =~ s,\.\.,<u\\>,g;
+	    $ref_path =~ s,/+,<c\\>,g;
+	    @p2m = (
+		"  <PgfTag `$CodePP'>\n",
+		"  <ParaLine\n",
+		"   <TextInset\n",
+		"    <TiSrcFile `$ref_path'>\n",
+		"    <TiAutoUpdate Yes>\n",
+		"    <TextInsetLocked No>\n",
+		"    <TiFlow\n",
+		"     <TiMainFlow Yes>\n",
+		"     <TiFormatting TiEnclosing>\n",
+		"     <TiFormatRemovePageBreaks No>\n",
+		"     <TiFormatRemoveOverrides No>\n",
+		"    > # end of TiFlow\n",
+		"   > # end of TextInset\n",
+		"  > # end of ParaLine\n",
+		" > # end of Para\n",
+		" <Para\n",
+		"  <PgfTag `DeleteMe'>\n",
+		"  <ParaLine\n",
+		"   <TextInsetEnd >\n",
+		"   <String `DeleteMe'>\n",
+		"  > # end of ParaLine\n",
+		" > # end of Para\n",
+	    );
+	    $add_end = 1;
+	} else {
+	    @p2m = (
+		"  <PgfTag `$SourcePP'>\n",
+		"  <ParaLine \n",
+		$marker_text,
+		"   <String `$frag_name'>\n",
+		"  >\n",
+		" > # end of Para\n"
+	    );
+	}
+    } else {
+	print "    $frag_name\n"if ($Verbose);
+	$cmd = "$Prog2MIF < $frag_src";
+	open(P2M, "$cmd |") || &die("$cmd: $!");
+	@p2m = <P2M>;
+	close(P2M) || &die("$cmd: $!");
+
+	splice(@p2m, 0, 4);		# the first 4 lines are unecessary
+	splice(@p2m, $#p2m - 2, 3);	# as are the last 3
+	splice(@p2m, 2, 0,		# put in the fragment file label
+	    "   <Font\n",
+	    "    <FTag `FragName'>\n",
+	    "   > # end of Font\n",
+	    $marker_text,
+	    "   <String `$frag_name'>\n",
+	    "   <Char Tab >\n",
+	    "   <Font\n",
+	    "    <FTag `'>\n",
+	    "   > # end of Font\n"
+	);
+    }
+    print NEW @p2m;
+
+    #
+    # Check for a change
+    #
+
+    return 1 if (!$Optimize);			# treat this as a change
+
+    local ($i);
+    local ($n, $o);
+
+    return 1 if ($#p2m != $#pp);		# clearly a change
+    for ($i = 0; $i <= $#pp; $i++) {		# check each line for a change
+	($n, $o) = (&strip($p2m[$i]), &strip($pp[$i]));
+	return 1 if ($n ne $o);
+    }
+    return 0;					# no change found
+}
+
+sub mif2prog
+{
+    local ($x_path, $tag_beg, $tag_end, @pp) = @_;
+    local ($dir) = $x_path;
+
+    $dir =~ s,/[^/]*$,,;
+    mkdir($dir) if (! -d $dir);
+
+    print "    $x_path: $#pp\n" if ($Verbose);
+
+    open(MIF, ">$x_path.mif") || die("$!: $x_path.mif");
+    print MIF "<MIFFile 1.01>\n";
+    print MIF " <Para\n";
+    print MIF @pp;
+    close(MIF);
+
+    local ($_, $line, $_);
+    open(FRAG, ">$x_path") || die("$!: $x_path");
+    foreach $i (0..$#pp) {
+	next if ($i >= $tag_beg && $i < $tag_end);
+	$_ = $pp[$i];
+	if (/<Char HardReturn/) {
+	    print FRAG unmif($line), "\n";
+	    $line = '';
+	    next;
+	} elsif (/<Char HardSpace>/) {
+	    $line .= ' ';
+	    next;
+	} elsif (/<String `(.*)'>/) {
+	    $line .= $1;
+	    next;
+	}
+    }
+    print FRAG unmif($line), "\n" if ($line);
+    close(FRAG);
+}
+
+sub unmif
+{
+    local ($_) = @_;
+
+    s/\\>/>/g;
+    s/\\q/'/gi;
+    s/\\xd4/`/gi;
+    s/\\xd5/'/gi;
+    s/\\xc7 /chr(0253)/gei;
+    s/\\xc8 /chr(0273)/gei;
+    s/\\x9a /chr(0366)/gei;
+    s/\\xc0 /chr(0277)/gei;
+    s/\\x96 /chr(0361)/gei;
+    s/\\x8a /chr(0344)/gei;
+    s/\\\\/\\/g;
+    return $_;
+}
+
+#
+# Change a .java fragment name to its equivalent class name if
+# the option is given, otherwise return our input.
+#
+sub marker_name
+{
+    local ($marker_name) = @_;
+    return $marker_name if (!$JavaToClass || $marker_name !~ /\.java$/);
+    $marker_name =~ s,\.java,,;
+    $marker_name =~ s,frag/src/,,;
+    $marker_name =~ tr,/,.,;
+    return $marker_name
+}
+
+#
+# strip:
+#	Return a version of this line stripped of comments and with
+#	white space compressed.  This lets you compare lines to see if
+#	they are the same *ignoring* these irrelevancies.
+#
+sub strip
+{
+    local ($_) = @_;
+
+    s/\s*#[^']*$//;	# strip off comments (but don't strip things in quotes)
+    s/ +/ /g;
+    return $_;
+}
+
+#
+# frame_docs:
+#	Return a list of frame docs given the command line arguments left
+#	after options are removed.
+#
+sub frame_docs
+{
+    local (@list);
+
+    @ARGV = '.' if ($#ARGV < 0);		# by default look in '.'
+    foreach $arg (@ARGV) {
+	if (!-d $arg) {				# simple files
+	    push(@list, $arg);
+	} else {				# directories
+	    local (@add);
+
+	    @add = <$arg/*.$BookSuffix>;	# books if they're there
+	    @add = <$arg/*.$FrameSuffix> if ($#add < 0);	# if not, docs
+	    $#add >= 0 || &die("No .$BookSuffix or .$FrameSuffix docs in $arg");
+	    @add = grep(!/\.backup/, @add);
+	    push(@list, @add);
+	}
+    }
+    return @list;
+}
+
+#
+# die:
+#	Die in a cleaned up, appropriate way.
+#
+sub die
+{
+    &cleanup();
+    die(@_);
+}
+
+#
+# cleanup:
+#	Cleanup the state of the process, letting fmbatch exit cleanly
+#	and cleaning up any of our own files.  We also list any
+#	fragments files that were not found.
+#
+sub cleanup
+{
+    local ($file);
+
+    &fm_cleanup() if (!$Xdir);
+    if (%NotFound) {
+	print "\n*** Files not found:\n";
+	foreach $file (keys(%NotFound)) {
+	    $fileName = $file;
+	    $fileName =~ s/\.mif$//;
+	    print "    $fileName: $NotFound{$file}\n";
+	}
+    }
+}
+
+#
+# globals:
+#	Set the global variables to their proper initial state, taking
+#	user-specified options into account.
+#
+sub globals
+{
+    &Getopts('vVs:c:b:f:BFaSo:m:d:MDX:p:jR');
+
+    # This ?: construct keeps -w happy, and I like -w, so I put up with this
+
+    $Verbose = ($opt_v ? $opt_v : 0);
+    $Optimize = ($opt_a ? !$opt_a : 1);
+
+    $SourcePP = ($opt_s ? $opt_s : 'Source'); 
+    $CodePP = ($opt_c ? $opt_c : 'Code'); 
+
+    $BookSuffix = ($opt_b ? $opt_b : 'bk'); 
+    $FrameSuffix = ($opt_f ? $opt_f : 'fm'); 
+
+    $AllAreBooks = ($opt_B ? $opt_B : 0);
+    $AllAreDocs = ($opt_F ? $opt_F : 0);
+    if ($AllAreBooks && $AllAreDocs) {
+	&die("Everything can't be *both* a book *and* a doc!\n");
+    }
+    $AllSource = ($opt_S ? $opt_S : 0);
+    $MIFOnly = ($opt_M ? $opt_M : 0);
+    $DocOnly = ($opt_D ? $opt_D : 0);
+
+    $Src = ($opt_d ? $opt_d : 'src');
+
+    $Xdir = $opt_X;
+    $ToRef = ($opt_R ? $opt_R : 0);
+
+    $FileList = ($opt_o ? $opt_o : 0) || $MIFOnly || $DocOnly;
+    if ($FileList) {
+	open(FILE_LIST, ">$FileList") || die("$FileList: $!");
+    }
+
+    local ($markers) = ($opt_m ? $opt_m : 'Header/Footer $1');
+    @Markers = split(/,/, $markers);
+    $JavaToClass = ($opt_j ? $opt_j : 0);
+
+    $Prog2MIF = ($opt_p ? $opt_p : "$progDir/prog2mif") . " -n $CodePP";
+}
