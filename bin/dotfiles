@@ -9,29 +9,45 @@
 dir=~/kcrca/dotfiles                    # dotfiles directory
 olddir=~/.bak             # old dotfiles backup directory
 
-##########
+function dotfilebak() {
+    echo .$1
+}
 
-# create $olddir in homedir
-if [ ! -d $olddir ]; then
-    echo -n "Creating $olddir for backup of any existing dotfiles in ~ ..."
-    mkdir -p $olddir
-fi
+function binfilebak() {
+    echo $1
+}
 
-# move any existing dotfiles in homedir to $olddir directory, then create symlinks from the homedir to any files in the ~/dotfiles directory
-cd $dir
-for file in *; do
-    df=~/.$file
-    if [ -f $df -o -d $df ]; then
-    	echo Move  $df to $olddir/
-	rm -rf $olddir
-    	mv $df $olddir
-    elif [ -L $df ]; then
-	echo Remove link $df
-	rm $df
+function linkup() {
+    srcdir="$1"
+    tgtdir="$2"
+    bakdir="$3"
+    tgtfilefunc="$4"
+
+    # create $olddir in homedir
+    if [ ! -d $bakdir ]; then
+	echo "Creating $bakdir for backup of any existing dotfiles in $srcdir ..."
+	test -z $debug && mkdir -p $bakdir
     fi
-    echo "Linking $dir/$file to $df"
-    ln -s $dir/$file $df
-done
+
+    # move any existing dotfiles in homedir to $bakdir directory, then create symlinks from the homedir to any files in the ~/dotfiles directory
+    cd $srcdir
+    for file in *; do
+	tgtbase=`eval $tgtfilefunc $file`
+	tgt=$tgtdir/$tgtbase
+	if [ -L $tgt ]; then
+	    test -z $debug && rm $tgt
+	elif [ -f $tgt -o -d $tgt ]; then
+	    echo Move $tgt to $bakdir
+	    test -z $debug && rm -rf $bakdir/$tgtbase
+	    test -z $debug && mv $tgt $bakdir
+	fi
+	echo "Linking $srcdir/$file to $tgt"
+	test -z $debug && ln -s $srcdir/$file $tgt
+    done
+}
+
+linkup ~/kcrca/dotfiles ~ ~/.bak dotfilebak
+linkup ~/kcrca/bin ~/bin ~/.bak/bin binfilebak
 
 install_zsh () {
 # Test to see if zshell is installed.  If it is:

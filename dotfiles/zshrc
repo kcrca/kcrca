@@ -25,18 +25,23 @@ build_prompt() {
 }
 build_prompt
 
-CMD_NOTIFY_TIME=${CMD_NOTIFY_TIME:-10}
+zstyle -d ':cmd_notify:'
+zstyle ':cmd_notify:' notify-time 15
+zstyle ':cmd_notify:' ignore-cmd man vl vi ex vim
+zstyle ':cmd_notify:' silent-frontmost Terminal
+zstyle ':cmd_notify:' frontmost-command frontmost
 
 function preexec() {
-    unset cmd
+    emulate -L zsh
     local -a cmd
     cmd=(${(z)1})             # Re-parse the command line
 
     # Handle job control (thanks to hardescape script)
     case $cmd[1] in
     fg|bg|job|%*)
+	# Look up the command that is being managed by fg, etc.
 	local jobspec
-	if [ $cmd[1] = 'fg' ]; then
+	if [[ $cmd[1] = 'fg' ]]; then
 	    if (( $#cmd == 1 )); then
 		jobspec="%+"
 	    else
@@ -48,7 +53,7 @@ function preexec() {
 
 	#
 	# I tried just using 'jobs -l' to translate the spec into a command, but
-	# I couldn't caputer the output.  That is,
+	# I couldn't capture the output.  That is,
 	#     jobs -l %1 | cat
 	# would result in the error "jobs: %1: no such job".  So I'm parsing things
 	# myself.  This seems like a bug, since "jobs | cat" works just fine.
@@ -66,7 +71,7 @@ function preexec() {
 	    i=0
 	    for cmd_text in $jobstates; do
 		i=$(( $i + 1 ))
-		if [ "$cmd_text" != "${cmd_text/:$jobspec:/}" ]; then
+		if [[ "$cmd_text" != "${cmd_text/:$jobspec:/}" ]]; then
 		    cmd_text=$jobtexts[$i]
 		    break
 		fi
@@ -74,7 +79,7 @@ function preexec() {
 	    ;;
 	*)
 	    for cmd_text in $jobtexts; do
-		if [ "$cmd_text" != "${cmd_text%$jobspec}" ]; then
+		if [[ "$cmd_text" != "${cmd_text%$jobspec}" ]]; then
 		    break
 		fi
 	    done
@@ -86,18 +91,21 @@ function preexec() {
 	;;	# do not need to look up the command
     esac
 
-    CMD_NOTIFY_COMMAND=($cmd)
+    zstyle ':cmd_notify:' command "$cmd[@]"
 
     # ARGH!!!  There is a zsh bug: If there is a preexec function, the elapsed
     # times for the history are wrong.  So I have to do elapsed time by myself.  Feh.
     # http://www.zsh.org/mla/workers/2007/msg01246.html
 
-    export CMD_NOTIFY_START=`date +%s`
+    zstyle ':cmd_notify:' start-time `date +%s`
 }
 
-# If something takes at least $CMD_NOTIFY_TIME seconds, use growl to notify if Terminal not in foreground
+# If something takes at least :cmd_notify:notify-time seconds, use growl to notify if Terminal not in foreground
 which osascript >&/dev/null && \
 function long_cmd_notify() {
+    if zstyle -T ':cmd_notify:' start-time; then
+    	return
+    fi
     result=$?
 
     # I used to use the commented-out code below, but a bug in zsh broke it (see preexec)
@@ -105,20 +113,25 @@ function long_cmd_notify() {
     # hist=(`fc -l -D -n -1 -1`)
     # tm=$hist[1]:s/://
 
-    local -i stop start tm
+    local -i stop start tm notify
+    local cmd
     stop=`date +%s`
-    start=${CMD_NOTIFY_START:-$stop}
+    zstyle -s ':cmd_notify:' start-time start
     tm=$(($stop - $start))
 
-    if [ $tm -ge $CMD_NOTIFY_TIME ]; then
-	local cmd
-	cmd=$CMD_NOTIFY_COMMAND[1]:t
-	case $cmd in
-	vl|vi|man)
-	    ;;	# it doesn't matter how long these took
-	*)
-	    fm=`osascript ~/bin/frontmost.scpt`
-	    if [ "$fm" != "Terminal" ]; then
+    zstyle -s ':cmd_notify:' notify-time notify
+    if (( $tm >= $notify )); then
+	local -a cmd
+	zstyle -a ':cmd_notify:' command cmd
+	if zstyle -m ':cmd_notify:' ignore_cmd $cmd[1]:t; then
+	    :	# it doesn't matter how long these took
+	else
+	    local fmc fm
+	    zstyle -g fmc ':cmd_notify:' frontmost-command
+	    fm=`eval $fmc`
+	    if zstyle -m ':cmd_notify:' silent-frontmost $fm; then
+		: # Be silent about commands if this is frontmost
+	    else
 		local -i secs=$(($tm % 60))
 		local -i mins=$(($tm / 60))
 		local timestr
@@ -127,10 +140,12 @@ function long_cmd_notify() {
 		(
 		    echo $timestr
 		    echo Status: $result
-		) | growlnotify -s -- "$CMD_NOTIFY_COMMAND[@]"
+		) | growlnotify -s -- "$cmd[@]"
 	    fi
-	esac
+	fi
     fi
+    # reset the timing
+    zstyle -d ':cmd_notify:' start-time
 }
 
 precmd_functions=(build_prompt long_cmd_notify)
@@ -148,6 +163,8 @@ test -f /Library/Frameworks/Python.framework/Versions/2.7/bin/virtualenvwrapper.
 
 # My custom stuff to update the prompt on virtualenv change
 
+test -f /etc/bash_completion.d/g4d && source /etc/bash_completion.d/g4d
+
 # The following lines were added by compinstall
 
 zstyle :compinstall filename '/Users/arnold/.zshrc'
@@ -155,3 +172,124 @@ zstyle :compinstall filename '/Users/arnold/.zshrc'
 autoload -U compinit
 compinit
 # End of lines added by compinstall
+
+# cdr command to remember chdir stack between sessions
+autoload -Uz chpwd_recent_dirs cdr add-zsh-hook
+add-zsh-hook chpwd chpwd_recent_dirs
+
+# This is my version of cdr, which also accepts "cd foo" and looks for a dir
+# named "foo" in the directory list
+cdr () {
+	emulate -L zsh
+	setopt extendedglob
+	autoload -Uz chpwd_recent_filehandler chpwd_recent_add
+	integer list set_reply i bad edit
+	local opt dir
+	local -aU dirs
+	while getopts "elr" opt
+	do
+		case $opt in
+			(e) edit=1  ;;
+			(l) list=1  ;;
+			(r) set_reply=1  ;;
+			(*) return 1 ;;
+		esac
+	done
+	shift $(( OPTIND - 1 ))
+	if (( set_reply ))
+	then
+		typeset -ga reply
+	else
+		local -a reply
+	fi
+	if (( list || set_reply || edit ))
+	then
+		(( $# )) && bad=1 
+	else
+		if [[ $#1 -eq 0 ]]
+		then
+			1=1 
+		elif [[ $# -ne 1 || $1 != <-> ]]
+		then
+			if zstyle -t ':chpwd:' recent-dirs-default
+			then
+				cd "$@" return
+			fi
+		fi
+	fi
+	if (( bad ))
+	then
+		print "Usage: $0 [-l | -r | <dir-num> ]
+Use $0 -l or completion to see possible directories."
+		return 1
+	fi
+	chpwd_recent_filehandler
+	if [[ $PWD != $reply[1] ]]
+	then
+		chpwd_recent_add $PWD && chpwd_recent_filehandler $reply
+	fi
+	if (( edit ))
+	then
+		local compcontext='directories:directory:_path_files -/'
+		IFS='
+' vared reply || return 1
+		chpwd_recent_filehandler $reply
+	fi
+	[[ $reply[1] = $PWD ]] && reply=($reply[2,-1]) 
+	if (( list ))
+	then
+		dirs=($reply) 
+		for ((i = 1; i <= ${#dirs}; i++ )) do
+			print -n ${(r.5.)i}
+			print -r ${(D)dirs[i]}
+		done
+		return
+	fi
+	(( set_reply || edit )) && return
+        if [[ $1 == <-> ]]
+        then
+                if (( $1 > ${#reply} ))
+                then
+                        print "Not enough directories ($(( ${#dirs} - 1)) possibilities)" >&2
+                        return 1
+                fi
+                dir=${reply[$1]} 
+        else
+		dirs=($reply) 
+		for ((i = 1; i <= ${#dirs}; i++ )) do
+			if [[ ${reply[$i]:t} == $1 ]]
+			then
+				dir=${reply[$i]}
+				break
+			fi
+		done
+		if [[ -z $dir ]]
+		then
+			print "Cannot find named dir" >& 2
+			return 1
+		fi
+        fi
+	if zstyle -t ':chpwd:' recent-dirs-pushd
+	then
+		pushd -- $dir
+	else
+		cd -- $dir
+	fi
+}
+
+# My addition to cdr: Does a pushd equivalent this time
+pdr() {
+	emulate -L zsh
+        if zstyle -t ':chpwd:' recent-dirs-pushd
+        then
+                cdr "$@"
+        else
+                local x
+                zstyle -s ':chpwd:' recent-dirs-pushd x
+                zstyle ':chpwd:' recent-dirs-pushd "true"
+                cdr "$@"
+                zstyle ':chpwd:' recent-dirs-pushd "$x"
+        fi
+}
+
+domain_source ~/.zshrc

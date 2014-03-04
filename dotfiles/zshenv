@@ -258,6 +258,28 @@ function md
     make $* >&! k &
 }
 
+function domain_source
+{
+    local domains=`hostname -f`
+    if [ -z "$domains" ]; then
+    	return
+    fi
+    local -a parts
+    parts=(${(s:.:)domains})
+    local cur
+    for p in ${(aO)parts}; do
+    	if [ -z "$cur" ]; then
+	    cur=$p
+	else
+	    cur=$p.$cur
+	fi
+	f=$1.$cur
+	test -f $f && echo . $f && . $f
+    done
+}
+
+domain_source ~/.zshenv
+
 XTERM=/usr/bin/X11/xterm
 
 export GNU_SECURE=~/.rhosts

@@ -12,3 +12,5 @@ if [ ! -z "$whoami[6]" ]; then
       *)   export DISPLAY="$REMOTE_HOST:0.0" ;;
     esac
 fi
+
+domain_source ~/.zlogin
