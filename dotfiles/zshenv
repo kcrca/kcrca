@@ -45,29 +45,29 @@ unalias set unset
 function setpath {
     # remove dups, preserving order
     newpath=()
-    for dir in $* $path; do
+    for dir in "$@" $path; do
         np=(${newpath:#$dir})
-        if [ -d $dir -a "$newpath $dir" = "$np $dir" ]; then
+        if [[ -d $dir && "$newpath $dir" = "$np $dir" ]]; then
             newpath=($newpath $dir)
         fi
     done
 
-    if [ "$newpath" != "$path" ]; then
+    if [[ "$newpath" != "$path" ]]; then
 	path=($newpath)
-	if [ "$ORIG_MANPATH" = "" ]; then
+	if [[ "$ORIG_MANPATH" = "" ]]; then
 	    export ORIG_MANPATH=$MANPATH
 	    export ORIG_LDPATH=$LD_LIBRARY_PATH
 	fi
 	mpath=$ORIG_MANPATH:/usr/local/share/man:/usr/share/man
 	lpath=$ORIG_LDPATH:/usr/local/share/lib:/usr/share/lib
 	for elem in $path; do
-	    if [ $elem != . ]; then
-		m=$elem:h/man
-		if [ "$m" != $elem -a -d "$m" ]; then
+	    if [[ $elem != . ]]; then
+		m=${elem:h/man}
+		if [[ $m != $elem && -d $m ]]; then
 		    mpath="$mpath:$m"
 		fi
 		l=$elem:h/lib
-		if [ "$l" != $elem -a -d "$l" ]; then
+		if [[ "$l" != $elem && -d "$l" ]]; then
 		    lpath="$lpath:$l"
 		fi
 	    fi
@@ -91,31 +91,32 @@ export CVS_RSH=ssh
 export RSYNC_RSH=ssh
 export QTDIR=/opt/local/lib/qt3
 
-if [ -z "$JAVA_HOME" -a -z "$JAVA_HOME_DONE" ]; then
-    if [ -x /usr/libexec/java_home ]; then
-	export JAVA_HOME=`/usr/libexec/java_home`
+if (( ${+JAVA_HOME} + ${+JAVA_HOME_DONE} == 0 )); then
+    if [[ -x /usr/libexec/java_home ]]; then
+	JAVA_HOME=`/usr/libexec/java_home`
     else
 	for f in  \
 	    /System/Library/Frameworks/JavaVM.framework/Versions/CurrentJDK/Home  \
 	    `test -d /usr/java && ls -d /usr/java/j2* | sort -r ` \
 	    /usr \
 	; do
-	    if [ -d $f -a -x $f/bin/java ]; then
-		export JAVA_HOME=$f
+	    if [[ -d $f && -x $f/bin/java ]]; then
+		JAVA_HOME=$f
 		break
 	    fi
 	done
 	test -t 2 && test -z "$JAVA_HOME" && (echo "No java found" 1>&2)
     fi
+    export JAVA_HOME
     export JAVA_HOME_DONE=done
 fi
 
 export VIRTUAL_ENV_BIN=
-if [ x"$VIRTUAL_ENV" != "x" ]; then
+if [[ -n $VIRTUAL_ENV ]]; then
     export VIRTUAL_ENV_BIN=$VIRTUAL_ENV/bin
 fi
 
-setpath .  ~/bin $VIRTUAL_ENV_BIN /Library/Frameworks/Python.framework/Versions/2.7/bin /Developer/usr/bin /usr/X11R6/bin $JAVA_HOME/bin $C3HOME/bin $M2_HOME/bin /sbin /usr/sbin /usr/local/bin /usr/local/sbin /usr/local/ImageMagick/bin /opt/local/bin /opt/local/sbin ~/iRODS.merge/clients/icommands/bin /usr/local/src/iRODS/clients/icommands/bin
+setpath . ~/bin $VIRTUAL_ENV_BIN /Library/Frameworks/Python.framework/Versions/2.7/bin /Developer/usr/bin /usr/X11R6/bin $JAVA_HOME/bin $C3HOME/bin $M2_HOME/bin /sbin /usr/sbin /usr/local/bin /usr/local/sbin /usr/local/ImageMagick/bin /opt/local/bin /opt/local/sbin ~/iRODS.merge/clients/icommands/bin /usr/local/src/iRODS/clients/icommands/bin
 
 export NETHACKOPTIONS='reserved:u-unicorn/t-touchstone/k-key/k-credit/k-lock pick/k-osaku/f-camera/e-pick-axe/e-mattock/e-broad pick/s-sack/s-bag/b-blindfold/c-stethoscope/l-lamp/l-lantern/l-candle,name:BlueMeanie,autopickup,pickup_types:$")[?+!=/,hilite_pet,showexp,dogname:Jazz,catname:Shamus,horsename:Shadowfax,fruit:Beatle,disclose:ia,lit_corridor,!news,time,perm_invent,eight_bit_tty,!help,pushweapon,!legacy,dungeon=\ |--------||.-|++¶¥¸°#<>«»º±\\¬{}÷£¬¬##·©},objects=])[="(%\!?§/$*`0_.'
 
@@ -141,7 +142,7 @@ alias ls >/dev/null && unalias ls
 
 function er
 {
-    if [ x$1 = x-c ]; then
+    if [[ x$1 = x-c ]]; then
 	shift
 	for f in `ereg | error -n |& sed -n -e '/^File "/{' -e 's/File "//' -e 's/".*//p' -e '}' ` ; do
 	    test -w $f || cco -nc $f
@@ -177,12 +178,12 @@ function _setl
 
     pat="$1"
     shift
-    if [ x"$pat" = x"" -o x"$*" = x"" ]; then
+    if [[ ! -n $pat || ! -n "$*" ]]; then
 	echo usage: $cmd pattern file ... 1>&2
 	return 1
     fi
     l=(`echo "$@" | sed -e 's/ /\\ /g' | xargs egrep -Hsl "$opts[@]" "$pat" 2>/dev/null | tr '\012' ' '`)
-    if [ x"$l" != x ]; then
+    if [[ x"$l" != x ]]; then
 	echo "$l[@]"
     else
 	echo '"'"$pat"'"' not found 1>&2
@@ -193,13 +194,13 @@ function _setl
 function setl
 {
     l=(`_setl setl "$@"`)
-    if [ $#l = 0 ]; then
+    if [[ $#l = 0 ]]; then
 	return 1
     else
 	# I don't know why I have to do the thing with COLUMNS here but I do
 	# otherwise it uses the default of 80
 	cnt=`COLUMNS=$COLUMNS ls -Cq "$l[@]" | wc -l`
-	if [ $cnt -gt 20 ]; then
+	if [[ $cnt -gt 20 ]]; then
 	    ls -m "$l[@]"
 	else
 	    ls "$l[@]"
@@ -210,7 +211,7 @@ function setl
 function vl
 {
     l=(`_setl vl "$@"`)
-    if [ $#l = 0 ]; then
+    if [[ $#l = 0 ]]; then
 	return 1
     fi
 
@@ -261,14 +262,14 @@ function md
 function domain_source
 {
     local domains=`hostname -f`
-    if [ -z "$domains" ]; then
+    if [[ -z "$domains" ]]; then
     	return
     fi
     local -a parts
     parts=(${(s:.:)domains})
     local cur
     for p in ${(aO)parts}; do
-    	if [ -z "$cur" ]; then
+    	if [[ -z "$cur" ]]; then
 	    cur=$p
 	else
 	    cur=$p.$cur

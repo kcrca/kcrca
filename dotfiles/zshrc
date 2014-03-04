@@ -11,12 +11,12 @@ FIGNORE='~:.bak:.o:CVS'		# Ignore during file completion
 
 build_prompt() {
     RP_BEFORE=
-    if [ $USER != arnold -a $USER != root ]; then
+    if [[ $USER != arnold && $USER != root ]]; then
 	RP_BEFORE="%U$USER%u@"
     fi
 
     RP_AFTER=
-    if [ x"$VIRTUAL_ENV" != x"" ]; then
+    if [[ -n $VIRTUAL_ENV ]]; then
 	RP_AFTER="["`basename $VIRTUAL_ENV`"]"
     fi
 
@@ -41,7 +41,7 @@ function preexec() {
     fg|bg|job|%*)
 	# Look up the command that is being managed by fg, etc.
 	local jobspec
-	if [[ $cmd[1] = 'fg' ]]; then
+	if [[ $cmd[1] == 'fg' ]]; then
 	    if (( $#cmd == 1 )); then
 		jobspec="%+"
 	    else
@@ -71,7 +71,7 @@ function preexec() {
 	    i=0
 	    for cmd_text in $jobstates; do
 		i=$(( $i + 1 ))
-		if [[ "$cmd_text" != "${cmd_text/:$jobspec:/}" ]]; then
+		if [[ $cmd_text != ${cmd_text/:$jobspec:/} ]]; then
 		    cmd_text=$jobtexts[$i]
 		    break
 		fi
@@ -79,7 +79,7 @@ function preexec() {
 	    ;;
 	*)
 	    for cmd_text in $jobtexts; do
-		if [[ "$cmd_text" != "${cmd_text%$jobspec}" ]]; then
+		if [[ $cmd_text != ${cmd_text%$jobspec} ]]; then
 		    break
 		fi
 	    done
