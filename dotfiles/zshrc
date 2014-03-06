@@ -103,7 +103,6 @@ function preexec() {
 
 # If something takes at least :cmd_notify:notify-time seconds, use growl to notify if Terminal not in foreground
 function long_cmd_notify() {
-    set -x
     if zstyle -T ':cmd_notify:' start-time; then
     	return
     fi
