@@ -31,6 +31,7 @@ zstyle ':cmd_notify:' ignore-cmd man vl vi ex vim
 zstyle ':cmd_notify:' silent-frontmost Terminal
 zstyle ':cmd_notify:' frontmost-command frontmost
 
+if which growlnotify >&/dev/null ; then
 function preexec() {
     emulate -L zsh
     local -a cmd
@@ -101,8 +102,8 @@ function preexec() {
 }
 
 # If something takes at least :cmd_notify:notify-time seconds, use growl to notify if Terminal not in foreground
-which osascript >&/dev/null && \
 function long_cmd_notify() {
+    set -x
     if zstyle -T ':cmd_notify:' start-time; then
     	return
     fi
@@ -147,6 +148,10 @@ function long_cmd_notify() {
     # reset the timing
     zstyle -d ':cmd_notify:' start-time
 }
+else
+unfunction long_cmd_notify 2>&/dev/null
+unfunction preexec 2>&/dev/null
+fi
 
 precmd_functions=(build_prompt long_cmd_notify)
 
