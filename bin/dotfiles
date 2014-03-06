@@ -6,8 +6,20 @@
 
 ########## Variables
 
-dir=~/kcrca/dotfiles                    # dotfiles directory
-olddir=~/.bak             # old dotfiles backup directory
+mode="link"
+args=`getopt cdnv $*`
+echocmd=false
+showonly=false
+set -- $args
+for o; do
+    case "$o" in
+    -c) mode="cmp" ; shift ;;
+    -d) mode="diff" ; shift ;;
+    -n) showonly="true" ; shift ;;
+    -v) echocmd="true" ; shift;;
+    --) shift; break;;
+    esac
+done
 
 function dotfilebak() {
     echo .$1
@@ -17,16 +29,30 @@ function binfilebak() {
     echo $1
 }
 
+function maybe_echo_run() {
+    doecho=$1
+    shift
+    test "$doecho" == "true" && echo "$@"
+    test "$showonly" == "false" && eval "$@"
+}
+
+function run() {
+    maybe_echo_run "$echocmd" "$@"
+}
+
+function run_echo() {
+    maybe_echo_run "true" "$@"
+}
+
 function linkup() {
     srcdir="$1"
     tgtdir="$2"
     bakdir="$3"
     tgtfilefunc="$4"
 
-    # create $olddir in homedir
+    # create $bakdir in homedir
     if [ ! -d $bakdir ]; then
-	echo "Creating $bakdir for backup of any existing dotfiles in $srcdir ..."
-	test -z $debug && mkdir -p $bakdir
+	run mkdir -p $bakdir
     fi
 
     # move any existing dotfiles in homedir to $bakdir directory, then create symlinks from the homedir to any files in the ~/dotfiles directory
@@ -34,15 +60,24 @@ function linkup() {
     for file in *; do
 	tgtbase=`eval $tgtfilefunc $file`
 	tgt=$tgtdir/$tgtbase
-	if [ -L $tgt ]; then
-	    test -z $debug && rm $tgt
-	elif [ -f $tgt -o -d $tgt ]; then
-	    echo Move $tgt to $bakdir
-	    test -z $debug && rm -rf $bakdir/$tgtbase
-	    test -z $debug && mv $tgt $bakdir
-	fi
-	echo "Linking $srcdir/$file to $tgt"
-	test -z $debug && ln -s $srcdir/$file $tgt
+	case $mode in
+	link)
+	    if [ -L $tgt ]; then
+		run rm $tgt
+	    elif [ -f $tgt -o -d $tgt ]; then
+		run rm -rf $bakdir/$tgtbase
+		run mv $tgt $bakdir
+	    fi
+	    run ln -s `pwd`/$file $tgt
+	    ;;
+	cmp|diff)
+	    if [ -f "$tgt" ]; then
+		run_echo $mode $tgt $srcdir/$file
+	    else
+		echo Only in ${srcdir}: $file
+	    fi
+	    ;;
+        esac
     done
 }
 
