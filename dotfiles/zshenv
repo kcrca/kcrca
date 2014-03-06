@@ -81,7 +81,6 @@ function setpath {
     fi
 }
 
-export DISPLAY=:0.0
 export X11HOME=/usr/X11R6
 export X11R6HOME=/usr/X11R6
 export EDITOR=vi
@@ -291,6 +290,3 @@ export VIRTUAL_ENV_DISABLE_PROMPT=yes
 
 export ANT_HOME=/usr/local/ant
 export JINI_HOME=/usr/local/jini
-
-# For irods server logging
-export spLogLevel=10
