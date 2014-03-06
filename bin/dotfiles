@@ -15,7 +15,7 @@ for o; do
     case "$o" in
     -c) mode="cmp" ; shift ;;
     -d) mode="diff" ; shift ;;
-    -n) showonly="true" ; shift ;;
+    -n) showonly="true" ; echocmd="true" ; shift ;;
     -v) echocmd="true" ; shift;;
     --) shift; break;;
     esac
@@ -57,18 +57,23 @@ function linkup() {
 
     # move any existing dotfiles in homedir to $bakdir directory, then create symlinks from the homedir to any files in the ~/dotfiles directory
     cd $srcdir
+    abs=`pwd`
     for file in *; do
+	srcfile=$abs/$file
 	tgtbase=`eval $tgtfilefunc $file`
 	tgt=$tgtdir/$tgtbase
 	case $mode in
 	link)
+	    if [ $srcfile -ef $tgt ]; then
+		continue
+	    fi
 	    if [ -L $tgt ]; then
 		run rm $tgt
 	    elif [ -f $tgt -o -d $tgt ]; then
-		run rm -rf $bakdir/$tgtbase
+		test -e $bakdir/$tgtbase && run rm -rf $bakdir/$tgtbase
 		run mv $tgt $bakdir
 	    fi
-	    run ln -s `pwd`/$file $tgt
+	    run ln -s $srcfile $tgt
 	    ;;
 	cmp|diff)
 	    if [ -f "$tgt" ]; then
