@@ -11,7 +11,7 @@ FIGNORE='~:.bak:.o:CVS'		# Ignore during file completion
 
 build_prompt() {
     RP_BEFORE=
-    if [[ $USER != arnold && $USER != root ]]; then
+    if [[ $USER != arnold && $USER != root && $USER != kcrca ]]; then
 	RP_BEFORE="%U$USER%u@"
     fi
 
