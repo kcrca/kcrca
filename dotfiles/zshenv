@@ -290,3 +290,5 @@ export VIRTUAL_ENV_DISABLE_PROMPT=yes
 
 export ANT_HOME=/usr/local/ant
 export JINI_HOME=/usr/local/jini
+
+test -z "$DISPLAY" && export DISPLAY=:0.0
