@@ -62,7 +62,7 @@ function setpath {
 	lpath=$ORIG_LDPATH:/usr/local/share/lib:/usr/share/lib
 	for elem in $path; do
 	    if [[ $elem != . ]]; then
-		m=${elem:h/man}
+		m=${elem:h}/man
 		if [[ $m != $elem && -d $m ]]; then
 		    mpath="$mpath:$m"
 		fi
