@@ -15,3 +15,5 @@ else
     fi
 fi
 export REMOTE_HOST DISPLAY
+
+domain_source ~/.zlogin
