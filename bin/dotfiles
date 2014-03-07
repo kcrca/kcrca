@@ -8,7 +8,7 @@
 
 mode="link"
 args=`getopt cdnv $*`
-echocmd=false
+echocmd=true
 showonly=false
 set -- $args
 for o; do
@@ -16,7 +16,7 @@ for o; do
     -c) mode="cmp" ; shift ;;
     -d) mode="diff" ; shift ;;
     -n) showonly="true" ; echocmd="true" ; shift ;;
-    -v) echocmd="true" ; shift;;
+    -q) echocmd="false" ; shift;;
     --) shift; break;;
     esac
 done
