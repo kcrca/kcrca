@@ -1,0 +1,17 @@
+#!/bin/zsh
+
+if klist -t; then
+    now=`date +"%s"`
+    l=`klist | tail -1`
+    exp_str="$l[23,42]"
+    # This works on OS X
+    exp=`date -j -f "%b %d %T %Y" "$exp_str" "+%s"`
+    if [[ $exp == "" ]]; then
+	# This works on ubuntu
+	exp=`date --date="$exp_str" +"%s"`
+    fi
+    if (( $exp - $now >= 1 * 60 * 60 )); then
+	exit 0
+    fi
+fi
+run kinit

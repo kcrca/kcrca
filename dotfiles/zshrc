@@ -31,7 +31,8 @@ zstyle ':cmd_notify:' ignore-cmd man vl vi ex vim
 zstyle ':cmd_notify:' silent-frontmost Terminal
 zstyle ':cmd_notify:' frontmost-command frontmost
 
-if which growlnotify >&/dev/null ; then
+#if which growlnotify >&/dev/null ; then
+if false ; then
 function preexec() {
     emulate -L zsh
     local -a cmd
@@ -103,10 +104,10 @@ function preexec() {
 
 # If something takes at least :cmd_notify:notify-time seconds, use growl to notify if Terminal not in foreground
 function long_cmd_notify() {
-    if zstyle -T ':cmd_notify:' start-time; then
-    	return
-    fi
     result=$?
+    if zstyle -T ':cmd_notify:' start-time; then
+    	return 0
+    fi
 
     # I used to use the commented-out code below, but a bug in zsh broke it (see preexec)
     # working.  I leave it in because it should be faster, so if the bug gets fixed...
