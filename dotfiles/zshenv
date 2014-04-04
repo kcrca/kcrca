@@ -90,7 +90,7 @@ export CVS_RSH=ssh
 export RSYNC_RSH=ssh
 export QTDIR=/opt/local/lib/qt3
 
-if (( ${+JAVA_HOME} + ${+JAVA_HOME_DONE} == 0 )); then
+if (( ${+JAVA_HOME} == 0 )); then
     if [[ -x /usr/libexec/java_home ]]; then
 	JAVA_HOME=`/usr/libexec/java_home`
     else
@@ -107,7 +107,6 @@ if (( ${+JAVA_HOME} + ${+JAVA_HOME_DONE} == 0 )); then
 	test -t 2 && test -z "$JAVA_HOME" && (echo "No java found" 1>&2)
     fi
     export JAVA_HOME
-    export JAVA_HOME_DONE=done
 fi
 
 export VIRTUAL_ENV_BIN=
