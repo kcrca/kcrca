@@ -1,24 +1,48 @@
 #!/bin/zsh
-
 # Check for unwritten vim swap files
+
+while getopts rv flag; do
+    case "$flag" in
+    v) verbose=1;;
+    r) recurse=1;;
+    ?) exit;;
+    esac
+done
+shift $(( OPTIND - 1 ))
+
+#
 # (1) find directories with .swp files in them
-swps=(`find . -name '.*.swp' | while read fn; do dirname "$fn"; done | sort -u`)
-# (2) look in there for unwritten files
+#
+dirs=("${@:-.}")
+if (( recurse )); then
+    swps=(`find $dirs -name '.*.swp' | while read fn; do dirname "$fn"; done | sort -u`)
+else
+    swps=($dirs)
+fi
+
+#
+# (2) look in there for unwritten files that have at least two chars (because single
+# char filenames are usualy used for scratch files)
+#
+
 top=${1:-$PWD}
-modified=(`
-	for dir in $swps; do
-		(
-			cd $dir 
-			vi -r 2>&1 | awk '
-				BEGIN { pwd = "'$top'/" }
-				/file name: (.*)/ { file = $3 ; sub(pwd, "", file) ; file = substr(file, 1, length(file) - 1) }
-				/modified: YES/ { printf("%s", file) }
-				/In directory/ { exit }')
-	done
-`)
+modified=()
+for dir in $swps; do
+    if (( verbose )); then
+	echo Checking $dir
+    fi
+    moded=$(cd $dir && vi -r |& awk '
+	    BEGIN { pwd = "'$top'/" }
+	    /file name: (.*)/ { file = $3 ; sub(pwd, "", file) ; file = substr(file, 1, length(file) - 1) }
+	    /modified: YES/ { if (length(file) > 1) { printf("%s", file) } }
+	    /In directory/ { exit }')
+    if [[ -n $moded ]]; then
+	modified+=$dir/$moded
+    fi
+done
 
 if (( $#modified > 0 )); then
-	echo '***' Unwritten files:
-	ls $modified
-	exit 1
+    echo '***' Unwritten files:
+    echo $modified | tr ' ' '\n' | sed -e 's/^/  /'
 fi
+exit $#modified

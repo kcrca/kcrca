@@ -40,7 +40,8 @@ g4dir() {
 		t="${PWD%/$d}"
 		g="$t/blaze-genfiles"
 		d="$d"
-		bb=$t/blaze-bin/$d
+		bb="$t/blaze-bin/$d"
+		gg="$g/$d"
 		if (( ! silent )); then
 			echo $d
 		fi
@@ -54,5 +55,6 @@ func pa() {
 }
 
 func g4doc() {
-	godoc -port 8080 -local_google3=$t -logtostderr
+	set -x
+	godoc "$@" -port 8080 -local_google3=$t -logtostderr .
 }
