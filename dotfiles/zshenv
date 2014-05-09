@@ -85,7 +85,6 @@ export X11HOME=/usr/X11R6
 export X11R6HOME=/usr/X11R6
 export EDITOR=vi
 export ENSCRIPT='-fTimes-Roman10'
-export PAGER=less
 export CVS_RSH=ssh
 export RSYNC_RSH=ssh
 export QTDIR=/opt/local/lib/qt3
