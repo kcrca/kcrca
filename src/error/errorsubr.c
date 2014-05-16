@@ -334,7 +334,7 @@ wordvcmp(char **wordv1, int wordc, char **wordv2)
 	for (i = 0; i < wordc; i++) {
 		if (wordv1[i] == 0 || wordv2[i] == 0)
 				return (-1);
-		if (back = strcmp(wordv1[i], wordv2[i])) {
+		if ((back = strcmp(wordv1[i], wordv2[i])) != 0) {
 			return (back);
 		}
 	}

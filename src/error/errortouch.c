@@ -170,7 +170,7 @@ filenames(int nfiles, Eptr **files)
 			nfiles, plural(nfiles), verbform(nfiles));
 		if (!terse) {
 			FILEITERATE(fi, 1) {
-				(void) fprintf(stdout, "%s\"%s\" (%d)",
+				(void) fprintf(stdout, "%s\"%s\" (%ld)",
 					sep, (*files[fi])->error_text[0],
 					files[fi+1] - files[fi]);
 				sep = ", ";
@@ -583,7 +583,7 @@ writetouched(int overwrite)
 	botch = 0;
 	oktorm = 1;
 	while ((nread = fread(edbuf, 1, sizeof (edbuf),
-	    o_touchedfile)) != NULL) {
+	    o_touchedfile)) != 0) {
 		if (nread != fwrite(edbuf, 1, nread, n_touchedfile)) {
 			/*
 			 *	Catastrophe in temporary area: file system full?
@@ -643,7 +643,7 @@ mustoverwrite(FILE *preciousfile, FILE *tmpfile)
 {
 	int	nread;
 
-	while ((nread = fread(edbuf, 1, sizeof (edbuf), tmpfile)) != NULL) {
+	while ((nread = fread(edbuf, 1, sizeof (edbuf), tmpfile)) != 0) {
 		if (mustwrite(edbuf, nread, preciousfile) == 0)
 			return (0);
 	}
