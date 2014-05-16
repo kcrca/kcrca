@@ -88,6 +88,7 @@ function linkup() {
 
 linkup ~/kcrca/dotfiles ~ ~/.bak dotfilebak
 linkup ~/kcrca/bin ~/bin ~/.bak/bin binfilebak
+( cd ~/kcrca/src && BIN=~/bin make install )
 
 install_zsh () {
 # Test to see if zshell is installed.  If it is:

@@ -31,15 +31,32 @@ g4dir() {
 		echo 1>&2 No google3 dir in "'$PWD'"
 		return 1
 	fi
-	t="${PWD%/$d}"		# top dir (the google3 dir)
+
+	# $d is the path below google3 to this dir
+	t="${PWD%/$d}"		# full path to top dir (the google3 dir)
 	g="$t/blaze-genfiles"	# generated files
-	gg="$g/$d"		# ... for this dir
 	b="$t/blaze-bin"	# binary files
-	bb="$b/$d"		# ... for this dir
 	l="$t/blaze-testlogs"	# test log files
-	ll="$l/$d"		# ... for this dir
 	o="$t/blaze-out"	# output files
-	oo="$o/$d"		# ... for this dir
+	tt="$t/$d"		# ... plus this dir
+	gg="$g/$d"		# ... plus this dir
+	bb="$b/$d"		# ... plus this dir
+	ll="$l/$d"		# ... plus this dir
+	oo="$o/$d"		# ... plus this dir
+
+	# for use in scripts
+	export G4_CUR="$d"
+	export G4_TOP="$t"
+	export G4_GEN="$g"
+	export G4_BIN="$b"
+	export G4_LOG="$l"
+	export G4_OUT="$o"
+	export G4_CUR_TOP="$tt"
+	export G4_CUR_GEN="$gg"
+	export G4_CUR_BIN="$bb"
+	export G4_CUR_LOG="$ll"
+	export G4_CUR_OUT="$oo"
+
 	if (( ! silent )); then
 		echo $d
 	fi
