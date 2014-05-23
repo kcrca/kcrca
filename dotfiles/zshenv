@@ -137,6 +137,11 @@ alias activate='. bin/activate ; rs'
 #Some systems alias this to color stuff, and yuck, so no
 alias ls >/dev/null && unalias ls
 
+function ereg
+{
+    egrep '\.[a-z][a-z0-9]*:[0-9]+:' k
+}
+
 function er
 {
     if [[ x$1 = x-c ]]; then
@@ -145,7 +150,11 @@ function er
 	    test -w $f || cco -nc $f
 	done
     fi
-    ereg | error -v
+    if [[ x$1 = x-i ]]; then
+	    ereg | error
+    else
+	    ereg | error -v
+    fi
 }
 
 function _setl

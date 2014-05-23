@@ -73,3 +73,5 @@ func g4doc() {
 	set -x
 	godoc "$@" -port 8080 -local_google3=$t -logtostderr .
 }
+
+export MCNODE_HOST=wgry15
