@@ -265,6 +265,7 @@ function md
     make $* >&! k &
 }
 
+_domain_source=()
 function domain_source
 {
     local domains=`hostname -f`
@@ -281,7 +282,10 @@ function domain_source
 	    cur=$p.$cur
 	fi
 	f=$1.$cur
-	test -f $f && echo . $f && . $f
+	if [[ -f $f ]]; then
+	    _domain_source+=$f
+	    . $f
+	fi
     done
 }
 
