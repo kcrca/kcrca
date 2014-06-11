@@ -62,16 +62,4 @@ g4dir() {
 	fi
 }
 
-func pa() {
-	prodaccess "$@" --ssh_cert --kinit && . ~/.ssh/agent.kcrca.cam.corp.google.com
-}
-
-# This is wrong, there must be some way to do this: Run godoc or whatever to
-# publish the HTML godoc for the current dir, or the current google3 or
-# something like that.
-func g4doc() {
-	set -x
-	godoc "$@" -port 8080 -local_google3=$t -logtostderr .
-}
-
-export MCNODE_HOST=wgry15
+export MCNODE_HOST=wgrk15

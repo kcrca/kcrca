@@ -121,8 +121,6 @@ export ROGUEOPTS='passgo,fruit=apple,noseefloor,inven=o'
 
 export VISUAL=vi
 
-unlimit
-
 alias hi=history
 alias z=suspend
 alias pd=pushd
