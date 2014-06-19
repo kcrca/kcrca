@@ -12,12 +12,14 @@ FIGNORE='~:.bak:.o:CVS'		# Ignore during file completion
 build_prompt() {
     RP_BEFORE=
     if [[ $USER != arnold && $USER != root && $USER != kcrca ]]; then
-	RP_BEFORE="%U$USER%u@"
+	RP_BEFORE="%U%n%u@"
     fi
 
     RP_AFTER=
     if [[ -n $VIRTUAL_ENV ]]; then
 	RP_AFTER="["`basename $VIRTUAL_ENV`"]"
+    elif [[ $PWD =~ "/google/src/cloud/$USER/([^/]*)" ]]; then
+	RP_AFTER="[%B$match%b]"
     fi
 
     PROMPT="%h%(!. #.>) "
