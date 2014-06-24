@@ -44,6 +44,10 @@ g4dir() {
 	ll="$l/$d"		# ... plus this dir
 	oo="$o/$d"		# ... plus this dir
 
+	# temporary: while transfering from experimental to production
+	e=$t/experimental/mcnode
+	p=$t/production/mcnode
+
 	# for use in scripts
 	export G4_CUR="$d"
 	export G4_TOP="$t"
