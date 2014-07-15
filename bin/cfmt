@@ -1,0 +1,7 @@
+#!/bin/sh
+
+fmt=fmt
+if which gfmt >/dev/null; then 
+	fmt=gfmt
+fi
+exec $fmt -w80 -p// "$@"
