@@ -35,6 +35,18 @@ zstyle ':cmd_notify:' frontmost-command frontmost
 
 #if which growlnotify >&/dev/null ; then
 if false ; then
+    # This code used to work for me on the mac to pop up notification (via
+    # growl) when a command that had been runnning in the shell finishes *IF*
+    # it took more than a certain time. This let me run things in a shell and
+    # go do something else until it finished. This broke with some release,
+    # and I if'ed this out until I could fix it. The idea is that preexec
+    # remembers the command being run and the start time, and long_cmd_notify
+    # (also run before the prompt and before preexec) would do a notification
+    # if the time was too long. I started to generalize it so it could be
+    # loaded like any other zsh function, and configured to use other tools
+    # to notify.
+    #
+    # Broken, needs fixing someday.
 function preexec() {
     emulate -L zsh
     local -a cmd
@@ -179,6 +191,10 @@ zstyle :compinstall filename '/Users/arnold/.zshrc'
 autoload -U compinit
 compinit
 # End of lines added by compinstall
+
+# Quote URL's on the command line automatically
+autoload -U url-quote-magic
+zle -N self-insert url-quote-magic
 
 # cdr command to remember chdir stack between sessions
 autoload -Uz chpwd_recent_dirs cdr add-zsh-hook
