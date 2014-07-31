@@ -42,43 +42,74 @@ unalias set unset
 # Path variables
 #
 
+# Set the path variable and related work:
+#	- Including existing path so machine-standard dirs are in it
+#	- Remove non-existent dirs (so the same .zshenv file works on multiple machines)
+#	- For every */bin dir, add */sbin if it exists
+#	- Set the MANPATH and LD_LIBRARY_PATH to match (why shouldn't they?)
 function setpath {
-    # remove dups, preserving order
-    newpath=()
-    for dir in "$@" $path; do
-        np=(${newpath:#$dir})
-        if [[ -d $dir && "$newpath $dir" = "$np $dir" ]]; then
-            newpath=($newpath $dir)
+    # Add the elements of $path not in the parameter list
+    newpath=($@)
+    newpath=($newpath ${path:|newpath})
+    #echo $#newpath ; echo ${(F)newpath}
+
+    # expand every "bin" to "sbin"
+    np=()
+    typeset -A seen
+    for dir in $newpath; do
+	# dups can exist in the case of $X/bin and $Y/bin on systems where
+	# neither X nor Y are set in the env.
+	if [[ $seen[$dir] = "" ]]; then
+	    np+=$dir
+	    if [[ ${dir%/bin} != $dir ]]; then
+		np+=${dir%/bin}/sbin
+	    fi
+	    seen[$dir]=1
+	fi
+    done
+    newpath=($np)
+    #echo $#newpath ; echo ${(F)newpath}
+
+    # strip dirs not on this machine, preserving order
+    np=()
+    for dir in $newpath; do
+        if [[ -d $dir ]]; then
+	    np+=$dir
         fi
     done
+    newpath=($np)
+    #echo $#newpath ; echo ${(F)newpath}
 
-    if [[ "$newpath" != "$path" ]]; then
+    if [[ x$newpath != $path ]]; then
 	path=($newpath)
-	if [[ "$ORIG_MANPATH" = "" ]]; then
-	    export ORIG_MANPATH=$MANPATH
-	    export ORIG_LDPATH=$LD_LIBRARY_PATH
-	fi
-	mpath=$ORIG_MANPATH:/usr/local/share/man:/usr/share/man
-	lpath=$ORIG_LDPATH:/usr/local/share/lib:/usr/share/lib
-	for elem in $path; do
-	    if [[ $elem != . ]]; then
-		m=${elem:h}/man
-		if [[ $m != $elem && -d $m ]]; then
-		    mpath="$mpath:$m"
-		fi
-		l=$elem:h/lib
-		if [[ "$l" != $elem && -d "$l" ]]; then
-		    lpath="$lpath:$l"
-		fi
-	    fi
-	done
-	export MANPATH=$mpath
+
+	newmp=(`replacepath bin man`)
+	manpath=($newmp ${manpath:|newmp})
+
+	newlp=(`replacepath bin lib`)
+	#libpath isn't a thing, so we have to use the env vars
+	libpath=($newlp ${libpath:|newlp})
+	export LD_LIBRARY_RUN=${(j<:>)libpath}
 	# Commented this out because Apple's stuff kept saying it was ignoring
 	# it in setuid programs. I don't think I'm using it, so this gets rid
 	# of the warning. But if I *do* need it, I'll have to put it back.
-	#export LD_LIBRARY_PATH=$lpath
-	export LD_RUN_PATH=$lpath
+	#export LD_LIBRARY_PATH=LD_LIBRARY_RUN
     fi
+}
+
+func replacepath() {
+    from=$1
+    to=$2
+    newpath=()
+    for p in $path; do
+	if [[ ${p%/$from} != $p ]]; then
+	    np=${p%/$from}/$to
+	    if [[ -d $np ]]; then
+		newpath+=$np
+	    fi
+	fi
+    done
+    echo $newpath
 }
 
 export X11HOME=/usr/X11R6
@@ -113,7 +144,7 @@ if [[ -n $VIRTUAL_ENV ]]; then
     export VIRTUAL_ENV_BIN=$VIRTUAL_ENV/bin
 fi
 
-setpath . ~/bin ~/.homebrew/bin $VIRTUAL_ENV_BIN /Library/Frameworks/Python.framework/Versions/2.7/bin /Developer/usr/bin /usr/X11R6/bin $JAVA_HOME/bin $C3HOME/bin $M2_HOME/bin /sbin /usr/sbin /usr/local/bin /usr/local/sbin /usr/local/ImageMagick/bin /opt/local/bin /opt/local/sbin ~/iRODS.merge/clients/icommands/bin /usr/local/src/iRODS/clients/icommands/bin
+setpath . ~/bin ~/.homebrew/bin $VIRTUAL_ENV_BIN /Library/Frameworks/Python.framework/Versions/2.7/bin /Developer/usr/bin /usr/X11R6/bin $JAVA_HOME/bin $M2_HOME/bin /bin /usr/bin /usr/local/bin /usr/local/ImageMagick/bin /opt/local/bin ~/xyzzy
 
 export NETHACKOPTIONS='reserved:u-unicorn/t-touchstone/k-key/k-credit/k-lock pick/k-osaku/f-camera/e-pick-axe/e-mattock/e-broad pick/s-sack/s-bag/b-blindfold/c-stethoscope/l-lamp/l-lantern/l-candle,name:BlueMeanie,autopickup,pickup_types:$")[?+!=/,hilite_pet,showexp,dogname:Jazz,catname:Shamus,horsename:Shadowfax,fruit:Beatle,disclose:ia,lit_corridor,!news,time,perm_invent,eight_bit_tty,!help,pushweapon,!legacy,dungeon=\ |--------||.-|++¶¥¸°#<>«»º±\\¬{}÷£¬¬##·©},objects=])[="(%\!?§/$*`0_.'
 

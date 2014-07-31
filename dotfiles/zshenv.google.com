@@ -26,8 +26,9 @@ g4dir() {
 	fi
 
 	cd "$@" 2>/dev/null || cdr "$@" || return 1
+	# is .../google3/... or .../google3
 	d="${PWD#**/google3/}"
-	if [[ $d == $PWD ]]; then
+	if [[ $d == $PWD && $d:t != "google3" ]]; then
 		echo 1>&2 No google3 dir in "'$PWD'"
 		return 1
 	fi

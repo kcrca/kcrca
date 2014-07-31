@@ -14,4 +14,4 @@ if klist -t; then
 	exit 0
     fi
 fi
-run kinit
+FWD_SSH_AUTH_SOCK=$SSH_AUTH_SOCK SSH_AUTH_SOCK= run kinit
