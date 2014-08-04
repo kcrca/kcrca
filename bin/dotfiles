@@ -7,17 +7,18 @@
 ########## Variables
 
 mode="link"
-args=`getopt cdnv $*`
 echocmd=true
 showonly=false
-set -- $args
-for o; do
-    case "$o" in
-    -c) mode="cmp" ; shift ;;
-    -d) mode="diff" ; shift ;;
-    -n) showonly="true" ; echocmd="true" ; shift ;;
-    -q) echocmd="false" ; shift;;
-    --) shift; break;;
+src=~/kcrca
+while getopts ":s:cdnq" opt; do
+    case $opt in
+	s) src="$OPTARG" ;;
+	c) mode="cmp" ;;
+	d) mode="diff" ;;
+	n) showonly="true" ; echocmd="true" ;;
+	q) echocmd="false" ;;
+	?) echo "Invalid option: -$OPTARG >&2 ; exit 1 ;;
+	:) echo "Missing argument for -$OPTARG >&2 ; exit 1 ;;
     esac
 done
 
@@ -86,9 +87,11 @@ function linkup() {
     done
 }
 
-linkup ~/kcrca/dotfiles ~ ~/.bak dotfilebak
-linkup ~/kcrca/bin ~/bin ~/.bak/bin binfilebak
-( cd ~/kcrca/src && BIN=~/bin make install )
+linkup $src/dotfiles ~ ~/.bak dotfilebak
+#linkup $src/bin ~/bin ~/.bak/bin binfilebak
+if [ -d $src/src ]; then
+    ( cd $src/src && BIN=~/bin make install )
+fi
 
 install_zsh () {
 # Test to see if zshell is installed.  If it is:
