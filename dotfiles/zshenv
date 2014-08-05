@@ -305,20 +305,17 @@ function domain_source
     parts=(${(s:.:)domains})
     local cur
     for p in ${(aO)parts}; do
-    	if [[ -z "$cur" ]]; then
-	    cur=$p
-	else
-	    cur=$p.$cur
-	fi
-	f=$1.$cur
+	cur=.$p$cur
+	f=$HOME/.zsh$cur/$1
 	if [[ -f $f ]]; then
 	    _domain_source+=$f
+	    echo ${f}
 	    . $f
 	fi
     done
 }
 
-domain_source ~/.zshenv
+domain_source zshenv
 
 XTERM=/usr/bin/X11/xterm
 

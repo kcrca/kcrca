@@ -315,4 +315,4 @@ pdr() {
         fi
 }
 
-domain_source ~/.zshrc
+domain_source zshrc
