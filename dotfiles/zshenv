@@ -144,7 +144,7 @@ if [[ -n $VIRTUAL_ENV ]]; then
     export VIRTUAL_ENV_BIN=$VIRTUAL_ENV/bin
 fi
 
-setpath . ~/bin ~/kcrca/bin ~/google/bin ~/.homebrew/bin $VIRTUAL_ENV_BIN /Library/Frameworks/Python.framework/Versions/2.7/bin /Developer/usr/bin /usr/X11R6/bin $JAVA_HOME/bin $M2_HOME/bin /bin /usr/bin /usr/local/bin /usr/local/ImageMagick/bin /opt/local/bin ~/xyzzy
+setpath . ~/bin ~/kcrca/bin ~/google/bin /usr/local/git/current/bin ~/.homebrew/bin $VIRTUAL_ENV_BIN /Library/Frameworks/Python.framework/Versions/2.7/bin /Developer/usr/bin /usr/X11R6/bin $JAVA_HOME/bin $M2_HOME/bin /bin /usr/bin /usr/local/bin /usr/local/ImageMagick/bin /opt/local/bin ~/xyzzy
 
 export NETHACKOPTIONS='reserved:u-unicorn/t-touchstone/k-key/k-credit/k-lock pick/k-osaku/f-camera/e-pick-axe/e-mattock/e-broad pick/s-sack/s-bag/b-blindfold/c-stethoscope/l-lamp/l-lantern/l-candle,name:BlueMeanie,autopickup,pickup_types:$")[?+!=/,hilite_pet,showexp,dogname:Jazz,catname:Shamus,horsename:Shadowfax,fruit:Beatle,disclose:ia,lit_corridor,!news,time,perm_invent,eight_bit_tty,!help,pushweapon,!legacy,dungeon=\ |--------||.-|++¶¥¸°#<>«»º±\\¬{}÷£¬¬##·©},objects=])[="(%\!?§/$*`0_.'
 
@@ -309,7 +309,6 @@ function domain_source
 	f=$HOME/.zsh$cur/$1
 	if [[ -f $f ]]; then
 	    _domain_source+=$f
-	    echo ${f}
 	    . $f
 	fi
     done
