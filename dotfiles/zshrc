@@ -187,7 +187,7 @@ test -f /etc/bash_completion.d/g4d && source /etc/bash_completion.d/g4d
 # The following lines were added by compinstall
 
 zstyle ':completion:*' completer _complete _ignored
-zstyle :compinstall filename '/Users/kcrca/.zshrc'
+zstyle :compinstall filename ~/.zshrc
 
 autoload -Uz compinit
 compinit
