@@ -126,6 +126,7 @@ if (( ${+JAVA_HOME} == 0 )); then
     else
 	for f in  \
 	    /System/Library/Frameworks/JavaVM.framework/Versions/CurrentJDK/Home  \
+	    /usr/local/buildtools/java/jdk \
 	    `test -d /usr/java && ls -d /usr/java/j2* | sort -r ` \
 	    /usr \
 	; do
