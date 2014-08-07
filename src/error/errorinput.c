@@ -282,6 +282,10 @@ pccccom(void)
  *		fprintf(stderr, "%s:", filename);
  *	fprintf(stderr, "%d: ", line);
  *
+ *	This also handles errors with column numbers, as in
+ *
+ *	foo.c:534:12: missing ';'
+ *
  */
 Errorclass
 richieccom(void)
@@ -289,13 +293,20 @@ richieccom(void)
 	char	*cp;
 	char	**nwordv;
 	char	*file;
+	char	*colon;
 
 	if (lastchar(wordv[1]) == ':') {
-		cp = wordv[1] + strlen(wordv[1]) - 1;
+		cp = colon = wordv[1] + strlen(wordv[1]) - 1;
 		while (isdigit(*--cp))
 			continue;
+		// If there are two numbers, we want the first
+		if (*cp == ':' && isdigit(cp[-1])) {
+			colon = cp;
+			while (isdigit(*--cp))
+				continue;
+		}
 		if (*cp == ':') {
-			clob_last(wordv[1], '\0');	/* last : */
+		        *colon = '\0';			/* last : */
 			*cp = '\0';			/* first : */
 			file = wordv[1];
 			nwordv = wordvsplice(1, wordc, wordv+1);
