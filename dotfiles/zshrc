@@ -18,8 +18,9 @@ build_prompt() {
     RP_AFTER=
     if [[ -n $VIRTUAL_ENV ]]; then
 	RP_AFTER="["`basename $VIRTUAL_ENV`"]"
-    elif [[ $PWD =~ "/google/src/cloud/$USER/([^/]*)" ]]; then
-	RP_AFTER="[%B$match%b]"
+    elif which g4client > /dev/null && G4_CLIENT=`g4client`; then
+	export G4_CLIENT
+	RP_AFTER="[%B$G4_CLIENT%b]"
     fi
 
     PROMPT="%h%(!. #.>) "
@@ -202,20 +203,21 @@ autoload -Uz chpwd_recent_dirs cdr add-zsh-hook
 add-zsh-hook chpwd chpwd_recent_dirs
 
 # This is my version of cdr, which also accepts "cd foo" and looks for a dir
-# named "foo" in the directory list
+# named "foo" in the directory list, or -g and looks for a regexp (grep)
 cdr () {
 	emulate -L zsh
 	setopt extendedglob
 	autoload -Uz chpwd_recent_filehandler chpwd_recent_add
-	integer list set_reply i bad edit
+	integer list set_reply i bad edit grep
 	local opt dir
 	local -aU dirs
-	while getopts "elr" opt
+	while getopts "elrg" opt
 	do
 		case $opt in
 			(e) edit=1  ;;
 			(l) list=1  ;;
 			(r) set_reply=1  ;;
+			(g) grep=1 ;;
 			(*) return 1 ;;
 		esac
 	done
@@ -279,17 +281,26 @@ Use $0 -l or completion to see possible directories."
                 fi
                 dir=${reply[$1]} 
         else
+		local rd
 		dirs=($reply) 
 		for ((i = 1; i <= ${#dirs}; i++ )) do
-			if [[ ${reply[$i]:t} == $1 ]]
+		    	rd=$reply[$i]
+		    	if (( grep ))
 			then
-				dir=${reply[$i]}
+			    	if [[ $rd =~ $1 ]]
+				then
+				    	dir=$rd
+					break
+				fi
+			elif [[ ${rd:t} == $1 ]]
+			then
+				dir=$rd
 				break
 			fi
 		done
 		if [[ -z $dir ]]
 		then
-			print "Cannot find named dir" >& 2
+			print "Cannot find named dir: $1" >& 2
 			return 1
 		fi
         fi
