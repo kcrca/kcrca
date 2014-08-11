@@ -192,6 +192,7 @@ zstyle :compinstall filename ~/.zshrc
 
 autoload -Uz compinit
 compinit
+bashcompinit
 # End of lines added by compinstall
 
 # Quote URL's on the command line automatically
