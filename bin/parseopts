@@ -9,12 +9,17 @@
 # the output sets:
 #
 # * foo_opts["xyz"] to be the value of the "xyz" option, if it
-# 	  is specified. If "xyz" is a boolean option, sets it to "true"
-# 	* foo_params to be the params of the args after the options
-# 	* foo_unknown["xyz"] is true if the the "xyz" option is in the
+# is specified. If "xyz" is a boolean option, sets it to "true"
+# * foo_params to be the params of the args after the options
+# * foo_unknown["xyz"] is true if the the "xyz" option is in the
 # 	  args, but not known from --helpxml
 
+from __future__ import print_function
+
+from abc import abstractmethod
+
 import argparse
+import re
 import sys
 import subprocess
 import string
@@ -36,8 +41,75 @@ def text_for(f, n):
     return node.text
 
 
+class TextReader(object):
+    def __init__(self, pat):
+        self.pat = re.compile(pat, re.MULTILINE + re.IGNORECASE)
+        self.found = ()
+
+    def check(self, ht):
+        self.found = self.pat.findall(ht)
+        print(len(self.found))
+        return len(self.found) > 0
+
+    @abstractmethod
+    def match(self):
+        raise NotImplementedError
+
+
+class GnuReader(TextReader):
+    def __init__(self):
+        super(GnuReader, self).__init__(r'^  .([a-z0-9_])..--([a-z0-9_-]+)(=?)')
+
+    def match(self):
+        for m in self.found:
+            yield (m[1], m[0] if len(m[0]) > 0 else None, len(m[2]) > 0)
+
+
+class BlazeReader(TextReader):
+    def __init__(self):
+        super(BlazeReader, self).__init__(r'^  --(\[no\])?([a-z0-9_-]+) (?:\[-(.)\])?')
+
+    def match(self):
+        for m in self.found:
+            yield (m[1], m[2] if len(m[2]) > 0 else None, len(m[0]) == 0)
+
+
 def read_help_text(ht, my_args):
-    pass
+    parser = argparse.ArgumentParser(conflict_handler='resolve')
+    aliases = {}
+    for r in [GnuReader(), BlazeReader()]:
+        if r.check(ht):
+            for m in r.match():
+                long_name, short_name, has_args = m
+                add_argument(parser, aliases, long_name, short_name, has_args)
+            return parser, aliases
+    return None, None
+
+
+def add_argument(parser, aliases, long_name, short_name, has_args):
+    if long_name[0:4] == "help" or long_name[0:7] == "version" or short_name in ['h', 'v']:
+        return
+    long_opt = '--' + long_name if long_name else None
+    short_opt = '-' + short_name if short_name else None
+    if long_name and short_name:
+        aliases[long_name] = short_name
+    if not has_args:
+        if long_name:
+            if short_name:
+                parser.add_argument(short_opt, long_opt, action='store_const', const='true')
+            else:
+                parser.add_argument(long_opt, action='store_const', const='true')
+            parser.add_argument('--no' + long_name, dest=long_name, action='store_const', const='false')
+        else:
+            parser.add_argument(short_opt, action='store_const', const='true')
+    else:
+        if long_name:
+            if short_name:
+                parser.add_argument(short_opt, long_opt, nargs=1)
+            else:
+                parser.add_argument(long_opt, nargs=1)
+        else:
+            parser.add_argument(short_opt, nargs=1)
 
 
 def read_help_xml(ht, my_args):
@@ -45,43 +117,21 @@ def read_help_xml(ht, my_args):
     aliases = {}
     root = ET.fromstring(ht)
     for f in root.findall("flag"):
-        hasArgs = f.find("type").text != "bool"
+        has_args = f.find("type").text != "bool"
         long_name = text_for(f, "name")
         short_name = text_for(f, "short_name")
-        if long_name[0:4] == "help" or long_name[0:7] == "version" or short_name in ['h', 'v']:
-            continue
-        long_opt = '--' + long_name if long_name else None
-        short_opt = '-' + short_name if short_name else None
-        if long_name and short_name:
-            aliases[long_name] = short_name
-        if not hasArgs:
-            if long_name:
-                if short_name:
-                    parser.add_argument(short_opt, long_opt, action='store_const', const='true')
-                else:
-                    parser.add_argument(long_opt, action='store_const', const='true')
-                parser.add_argument('--no' + long_name, dest=long_name, action='store_const', const='false')
-            else:
-                parser.add_argument(short_opt, action='store_const', const='true')
-        else:
-            if long_name:
-                if short_name:
-                    parser.add_argument(short_opt, long_opt, nargs=1)
-                else:
-                    parser.add_argument(long_opt, nargs=1)
-            else:
-                parser.add_argument(short_opt, nargs=1)
+        add_argument(parser, aliases, long_name, short_name, has_args)
     return parser, aliases
 
 
 def results(args, aliases, unknown, my_args):
     name = my_args.name
-    print "%s_unknown=(%s);" % (name, quote(unknown))
-    print "typeset -A %s_opts;" % name
-    print "%s_params=();" % name
+    print("%s_unknown=(%s);" % (name, quote(unknown)))
+    print("typeset -A %s_opts;" % name)
+    print("%s_params=();" % name)
 
     def set_opt(k, v):
-        print "%s_opts[%s]=%s;" % (name, quote(k), quote(v))
+        print("%s_opts[%s]=%s;" % (name, quote(k), quote(v)))
 
     first_param = True
     for k, v in args.iteritems():
@@ -90,7 +140,7 @@ def results(args, aliases, unknown, my_args):
         if k == '__params__':
             if v[0] == '--':
                 v = v[1:]
-            print "%s_params+=(%s);" % (name, quote(v))
+            print("%s_params+=(%s);" % (name, quote(v)))
         else:
             set_opt(k, v)
             if k in aliases:
@@ -128,7 +178,7 @@ def main(argv=()):
 
     if my_args.help_subcmd or my_args.subcmd:
         my_args.subcmd = my_args.cmdargs[0]
-        my_args.cmdargs[0] = my_args.cmdargs[1:]
+        my_args.cmdargs = my_args.cmdargs[1:]
 
     if not my_args.name:
         my_args.name = my_args.cmd
@@ -141,7 +191,7 @@ def main(argv=()):
     else:
         help_cmd = ' '.join([my_args.cmd, my_args.help_opt])
 
-    print 'help_cmd:', help_cmd
+    print('help_cmd:', help_cmd)
     ht = ""
     try:
         ht = subprocess.check_output(help_cmd, shell=True)
@@ -150,7 +200,13 @@ def main(argv=()):
             raise
         ht = e.output
 
+    # noinspection PyCallingNonCallable
     parser, aliases = read_help[my_args.help_fmt](ht, my_args)
+    if parser is None:
+        print("No parser found for help command %s", help_cmd, file=sys.stderr)
+        print("Help text:", file=sys.stderr)
+        print(ht, file=sys.stderr)
+        sys.exit(1)
     parser.add_argument('__params__', nargs=argparse.REMAINDER)
     args, unknown = parser.parse_known_args(my_args.cmdargs)
     results(vars(args), aliases, unknown, my_args)
