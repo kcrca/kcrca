@@ -1,4 +1,5 @@
 ?
+.idea
 .*.swp
 *.o
 src/error/error
