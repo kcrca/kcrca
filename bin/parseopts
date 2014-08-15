@@ -138,10 +138,15 @@ def results(args, aliases, unknown, my_args):
         if v is None:
             continue
         if k == '__params__':
+            # it includes the '--' if it is present
             if v[0] == '--':
                 v = v[1:]
             print("%s_params+=(%s);" % (name, quote(v)))
         else:
+            # If an option is specified multiple times, use
+            # a newline-separated string for the values.
+            if not isinstance(v, basestring):
+                v = '\n'.join(v)
             set_opt(k, v)
             if k in aliases:
                 set_opt(aliases[k], v)
