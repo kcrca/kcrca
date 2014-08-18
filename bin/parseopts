@@ -60,58 +60,78 @@ class TextReader(object):
 
 
 def read_gnu_help(ht, my_args, parser, aliases):
-    for m in re.findall(r'^  .([a-z0-9_])..--([a-z0-9_-]+)(=?)', ht, re.MULTILINE + re.IGNORECASE):
-        long_name, short_name, has_args = (m[1], m[0] if len(m[0]) > 0 else None, len(m[2]) > 0)
-        add_argument(parser, aliases, long_name, short_name, has_args)
+    one_opt = r'(?:-([0-9a-z_]) ?([^, ]+)?|--([-0-9a-z_]+)=?([^, ]+)?)'
+    opt_spec = r'^ *(?:' + one_opt + ', )*' + one_opt
+    one_opt_re = re.compile(one_opt, re.IGNORECASE)
+    opt_spec_re = re.compile(opt_spec, re.IGNORECASE)
+    for line in ht.split('\n'):
+        o = opt_spec_re.match(line)
+        if o:
+            names = []
+            nargs = 0
+            for m in one_opt_re.findall(o.group(0)):
+                if m[0]:
+                    names.append(m[0])
+                    arg_spec = m[1]
+                else:
+                    names.append(m[2])
+                    arg_spec = m[3]
+                if not arg_spec:
+                    nargs = 0
+                elif arg_spec[0] == '[':
+                    nargs = '?'
+                else:
+                    nargs = 1
+            add_argument(parser, aliases, nargs, *names)
     return parser, aliases
 
 
 def read_google_help(ht, my_args, parser, aliases):
     for m in re.findall(r'^  (?:-(.),)?--(\[no\])?([-a-z0-9_]+)', ht, re.MULTILINE + re.IGNORECASE):
-        long_name, short_name, has_args = (m[2], m[0] if len(m[0]) > 0 else None, len(m[1]) == 0)
-        add_argument(parser, aliases, long_name, short_name, has_args)
+        short_name, long_name, nargs = (m[0] if len(m[0]) > 0 else None, m[2], 0 if len(m[1]) > 0 else 1)
+        add_argument(parser, aliases, nargs, long_name, short_name)
     return parser, aliases
 
 
 def read_blaze_help(ht, my_args, parser, aliases):
     for m in re.findall(r'^  --(\[no\])?([-a-z0-9_]+) (?:\[-(.)\])?', ht, re.MULTILINE + re.IGNORECASE):
-        long_name, short_name, has_args = (m[1], m[2] if len(m[2]) > 0 else None, len(m[0]) == 0)
-        add_argument(parser, aliases, long_name, short_name, has_args)
+        short_name, long_name, nargs = (m[2] if len(m[2]) > 0 else None, m[1], 0 if len(m[0]) == 0 else 1)
+        add_argument(parser, aliases, nargs, long_name, short_name)
     return parser, aliases
 
 
 def read_help_xml(ht, my_args, parser, aliases):
     root = ET.fromstring(ht)
     for f in root.findall("flag"):
-        has_args = f.find("type").text != "bool"
-        long_name = text_for(f, "name")
+        nargs = 0 if f.find("type").text == "bool" else 1
         short_name = text_for(f, "short_name")
-        add_argument(parser, aliases, long_name, short_name, has_args)
+        long_name = text_for(f, "name")
+        add_argument(parser, aliases, nargs, long_name, short_name)
     return parser, aliases
 
 
-def add_argument(parser, aliases, long_name, short_name, has_args):
-    long_opt = '--' + long_name if long_name else None
-    short_opt = '-' + short_name if short_name else None
-    verbose_args = '%s/%s (%s)' % (short_name, long_name, has_args)
-
-    if long_name[0:4] == "help" or long_name[0:7] == "version" or short_name in ['h', 'v']:
-        verbose('add_argument: ignoring help or version: %s' % verbose_args)
-        return
-    if long_name and short_name:
-        aliases[long_name] = short_name
-        verbose('add_argument: alias for %s: %s' % (long_name, short_name))
-    if has_args:
-        parser_kwargs = {'nargs': 1}
+def add_argument(parser, aliases, nargs, *names):
+    names = [n for n in names if n]
+    opts = ["-" + n if len(n) == 1 else "--" + n for n in names]
+    verbose_args = '/'.join(opts) + ("(%s)" % nargs)
+    for n in names:
+        if n in ['h', 'v'] or n[0:4] == 'help' or n == "version":
+            verbose('add_argument: ignoring help or version: %s' % verbose_args)
+            return
+    dest = names[-1]
+    if len(names) > 1:
+        aliases[dest] = names[0:-1]
+        verbose('add_argument: alias for %s: %s' % (dest, ', '.join(aliases[names[-1]])))
+    if nargs:
+        parser_kwargs = {'nargs': nargs}
     else:
         parser_kwargs = {'action': 'store_const', 'const': 'true'}
-        if long_name:
-            parser.add_argument('--no' + long_name, dest=long_name, action='store_const', const='false')
-    parser_opts = [short_opt] if short_opt else []
-    if long_opt:
-        parser_opts.append(long_opt)
-    verbose('add_argument: %s, %s' % (parser_opts, parser_kwargs))
-    parser.add_argument(*parser_opts, **parser_kwargs)
+        for n in names:
+            if len(n) > 1:
+                parser.add_argument('--no' + n, dest=names[0], action='store_const', const='false')
+    parser_kwargs['dest'] = dest
+    verbose('add_argument: "%s", %s' % ('", "'.join(opts), parser_kwargs))
+    parser.add_argument(*opts, **parser_kwargs)
 
 
 def results(args, aliases, unknown, my_args):
@@ -243,11 +263,11 @@ def main(argv=()):
         my_args.help_opt = '--helpxml' if my_args.xml else '--help'
 
     if my_args.xml:
-        my_args.help_fmt = 'xml'
+        my_args.help_fmt = ['xml']
         my_args.keep_going = True  # --helpxml exits with non-zero status
 
     if my_args.cmd == 'blaze' and not my_args.help_fmt:
-        my_args.help_fmt = 'blaze'
+        my_args.help_fmt = ['blaze']
 
     if my_args.help_subcmd or my_args.subcmd:
         my_args.subcmd = my_args.cmdargs[0]
@@ -257,7 +277,7 @@ def main(argv=()):
         my_args.name = my_args.cmd
 
     if not my_args.help_fmt:
-        my_args.help_fmt = 'gnu'
+        my_args.help_fmt = ['gnu']
 
     help_cmd, ht = get_help(my_args)
     verbose('help text:')
@@ -268,7 +288,7 @@ def main(argv=()):
 
     verbose('help format: %s' % my_args.help_fmt)
     # noinspection PyCallingNonCallable
-    read_help[my_args.help_fmt](ht, my_args, parser, aliases)
+    read_help[my_args.help_fmt[0]](ht, my_args, parser, aliases)
     if parser is None:
         print("No parser found for help command %s", help_cmd, file=sys.stderr)
         print("Help text:", file=sys.stderr)
