@@ -183,7 +183,6 @@ def results(args, aliases, unknown, my_args):
 
 
 def cache_dir():
-    return os.path.join("/tmp", 'parseopts')
     return os.path.join(tempfile.gettempdir(), 'parseopts')
 
 
