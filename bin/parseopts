@@ -26,7 +26,7 @@ import sys
 import subprocess
 import string
 import tempfile
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree
 
 
 def quote(s):
@@ -101,7 +101,7 @@ def read_blaze_help(ht, my_args, parser, aliases):
 
 
 def read_help_xml(ht, my_args, parser, aliases):
-    root = ET.fromstring(ht)
+    root = xml.etree.ElementTree.fromstring(ht)
     for f in root.findall("flag"):
         nargs = 'no' if f.find("type").text == "bool" else 1
         short_name = text_for(f, "short_name")
@@ -187,9 +187,9 @@ def cache_dir():
 
 
 def clear_cache():
-    dir = cache_dir()
-    if os.path.exists(dir):
-        shutil.rmtree(dir)
+    cdir = cache_dir()
+    if os.path.exists(cdir):
+        shutil.rmtree(cdir)
 
 
 be_verbose = False
@@ -212,12 +212,13 @@ def get_help(my_args):
         help_cmd = ' '.join([my_args.cmd, my_args.help_opt])
 
     verbose('help_cmd: %s' % help_cmd)
-    dir = cache_dir()
-    if not os.path.exists(dir):
-        os.makedirs(dir)
-    help_cache = os.path.join(dir, cache_name)
+    cdir = cache_dir()
+    if not os.path.exists(cdir):
+        os.makedirs(cdir)
+    help_cache = os.path.join(cdir, cache_name)
     cmd_cache = help_cache + ".cmd"
 
+    # noinspection PyBroadException
     try:
         with open(cmd_cache, 'r') as f:
             cached_cmd = f.read()
