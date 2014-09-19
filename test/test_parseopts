@@ -1,0 +1,129 @@
+#!/bin/zsh
+
+(( errs = 0 ))
+
+check()
+{
+    not=0
+    if [[ $1 == -n ]]; then
+	not=1
+	shift
+    fi
+
+    prefix=' '
+    suffix=""
+    typeset -A _a
+    set -A _a ${(kvP)1}
+    if (( not )); then
+	test='!='
+	if [[ $_a[$2] == $3 ]]; then
+		prefix='!'
+	fi
+    else
+	test='=='
+	if [[ $_a[$2] != $3 ]]; then
+		prefix='!'
+		suffix="(is $_a[$2])"
+	fi
+    fi
+    if [[ $prefix == '!' ]]; then
+	suffix="(is $_a[$2])"
+	(( errs++ ))
+    fi
+    echo $prefix "$1[$2]" $test "$3" $suffix
+}
+
+equal()
+{
+    _n=$1
+    shift
+    typeset -a _a
+    _a=(${(P)_n[@]})
+    prefix=' '
+    suffix=""
+    test="=="
+    if [[ $_a != $@ ]]; then
+	prefix='!'
+    fi
+    if [[ $prefix == '!' ]]; then
+	suffix="(is $_a[@])"
+	(( errs++ ))
+    fi
+    echo $prefix "$_n" $test "$@" $suffix
+}
+
+parse()
+{
+    eval `parseopts $parse_opts $parse_cmd $parse_subcmd $parse_args $parse_dashdash $parse_params | tee p`
+    cat p
+    equal ${parse_cmd}_cmd $parse_cmd
+    equal ${parse_cmd}_subcmd $parse_subcmd
+    equal ${parse_cmd}_args $parse_args
+    equal ${parse_cmd}_params $parse_params
+    unk=${parse_cmd}_unknown
+    for u in ${(P)unk}; do
+	check ${parse_cmd}_opts $u true
+    done
+}
+
+(
+    parse_opts=-x
+    parse_cmd=prodaccess
+    parse_subcmd=
+    parse_args=(--noemergency -g --corp_proxy "k'djf" --asdkfj)
+    parse_dashdash=--
+    parse_params=(xyzzy alsdkjf lj -alskdfj)
+    parse
+    eval `cat p`
+    check prodaccess_opts emergency false
+    check prodaccess_opts e false
+    check prodaccess_opts noemergency ''
+    check prodaccess_opts g true
+    check prodaccess_opts use_gnubby true
+    check prodaccess_opts corp_proxy "k'djf"
+    equal prodaccess_unknown asdkfj
+    equal prodaccess_params xyzzy alsdkjf lj -alskdfj
+    exit $errs
+)
+(( errs += $? ))
+
+(
+    parse_opts=
+    parse_cmd=make
+    parse_subcmd=
+    parse_args=(-I dir -k --xyzzy --jobs --debug=xyzzy)
+    parse_dashdash=
+    parse_params=(foo bar)
+    parse
+    eval `cat p`
+    check make_opts I dir
+    check make_opts include-dir dir
+    check make_opts k true
+    check make_opts keep-going true
+    check make_opts j _
+    check make_opts jobs _
+    check make_opts debug xyzzy
+    equal make_unknown xyzzy
+    exit $errs
+)
+(( errs += $? ))
+
+(
+    parse_opts=-S
+    parse_cmd=blaze
+    parse_subcmd=build
+    parse_args=(--tool_tag howdy -k --nosubcommands)
+    parse_dashdash=--
+    parse_params=(...)
+    parse
+    eval `cat p`
+    check blaze_opts subcommands false
+    check blaze_opts s false
+    check blaze_opts tool_tag howdy
+    check blaze_opts strip ''
+    equal blaze_unknown 
+    exit $errs
+)
+(( errs += $? ))
+
+exit $errs

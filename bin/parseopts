@@ -1,147 +1,209 @@
 #!/usr/bin/env python
 #
-# Usage:
-# 	parseopts varname cmd args
-#
+# Parse the help output of a command to understand its syntax, then take a
+# particular invocation of that command and parse it into a set of shell
+# commands that can be used by a shell script.
 # Runs "cmd --helpxml" to get a list of options and whether they take
 # arguments.  Prints out zsh commands that set variables about the specified
 # command arguments based on the --helpxml data. If varname is "foo", then
 # the output sets:
 #
-# 	* foo_opts["xyz"] to be the value of the "xyz" option, if it
-# 	  is specified. If "xyz" is a boolean option, sets it to "true"
-# 	* foo_params to be the params of the args after the options
-# 	* foo_unknown["xyz"] is true if the the "xyz" option is in the
-# 	  args, but not known from --helpxml
+# * foo_opts["xyz"] to be the value of the "xyz" option, if it
+# is specified. If "xyz" is a boolean option, sets it to "true"
+# * foo_params to be the params of the args after the options
+# * foo_unknown["xyz"] is true if the the "xyz" option is in the
+# args, but not known from --helpxml
+
+from __future__ import print_function
+
+from abc import abstractmethod
 
 import argparse
+import os
+import re
+import shutil
 import sys
 import subprocess
 import string
-import xml.etree.ElementTree as ET
+import tempfile
+import xml.etree.ElementTree
+
 
 def quote(s):
     if isinstance(s, basestring):
-        return "'%s'" % string.replace(s, "'", "''")
-    return ', '.join([quote(i) for i in s])
+        return "%s" % string.replace(s, "'", "\\'")
+    if s is None:
+        return ''
+    return ' '.join([quote(i) for i in s])
 
-def textFor(f, n):
-    node  = f.find(n)
+
+def text_for(f, n):
+    node = f.find(n)
     if node is None:
-	return None
+        return None
     return node.text
 
-def read_help_text(ht, my_args):
-    pass
 
-def read_help_xml(ht, my_args):
-    parser = argsparse.ArgumentParser()
-    aliases = {}
-    root = ET.fromstring(ht)
-    for f in root.findall("flag"):
-        hasArgs = f.find("type").text != "bool"
-        long_name = textFor(f, "name")
-        short_name = textFor(f, "short_name")
-        if long_name and short_name:
-            aliases[long_name] = short_name
-        if not hasArgs:
-                if long_name:
-                    if short_name:
-                        parser.add_argument(short_name, long_name, action='store_true')
-                    else:
-                        parser.add_argument(long_name, action='store_true')
-                    parser.add_argument('no' + long_name, dest=long_name, action='store_false')
+class TextReader(object):
+    def __init__(self, pat):
+        self.pat = re.compile(pat, re.MULTILINE + re.IGNORECASE)
+        self.found = ()
+
+    def check(self, ht):
+        self.found = self.pat.findall(ht)
+        print(len(self.found))
+        return len(self.found) > 0
+
+    @abstractmethod
+    def match(self):
+        raise NotImplementedError
+
+
+def read_gnu_help(ht, my_args, parser, aliases):
+    one_opt = r'(?:-([0-9a-z_]) ?([^, ]+)?|--([-0-9a-z_]+)[ =]?([^, ]+)?)'
+    opt_spec = r'^ *(?:' + one_opt + ', )*' + one_opt
+    one_opt_re = re.compile(one_opt, re.IGNORECASE)
+    opt_spec_re = re.compile(opt_spec, re.IGNORECASE)
+    for line in ht.split('\n'):
+        o = opt_spec_re.match(line)
+        if o:
+            names = []
+            nargs = 0
+            for m in one_opt_re.findall(o.group(0)):
+                if m[0]:
+                    names.append(m[0])
+                    arg_spec = m[1]
                 else:
-                    parser.add_argument(short_name, action='store_true')
-        else:
-                if long_name
-                    if short_name:
-                        parser.add_argument(short_name, long_name, nargs=1)
+                    names.append(m[2])
+                    arg_spec = m[3]
+                # Some are "-n FOO, --nnn FOO" and others "-n, --nnn FOO", so nargs = 0 can be overwritten
+                if arg_spec and not nargs:
+                    if arg_spec[0] == '[':
+                        nargs = '?'
                     else:
-                        parser.add_argument(long_name, nargs=1)
-                else:
-                    parser.add_argument(short_name, nargs=1)
-    parser.add_argument('params', nargs=argparse.REMAINDER)
+                        nargs = 1
+            add_argument(my_args, parser, aliases, nargs, *names)
     return parser, aliases
+
+
+def read_google_help(ht, my_args, parser, aliases):
+    for m in re.findall(r'^  (?:-(.),)?--(\[no\])?([-a-z0-9_]+)', ht, re.MULTILINE + re.IGNORECASE):
+        short_name, long_name, nargs = (m[0] if len(m[0]) > 0 else None, m[2], 0 if len(m[1]) > 0 else 1)
+        add_argument(my_args, parser, aliases, nargs, short_name, long_name)
+    return parser, aliases
+
+
+def read_blaze_help(ht, my_args, parser, aliases):
+    for m in re.findall(r'^  --(\[no\])?([-a-z0-9_]+) (?:\[-(.)\])?', ht, re.MULTILINE + re.IGNORECASE):
+        short_name, long_name, nargs = (m[2] if len(m[2]) > 0 else None, m[1], 'no' if len(m[0]) > 0 else 1)
+        add_argument(my_args, parser, aliases, nargs, short_name, long_name)
+    return parser, aliases
+
+
+def read_help_xml(ht, my_args, parser, aliases):
+    root = xml.etree.ElementTree.fromstring(ht)
+    for f in root.findall("flag"):
+        nargs = 'no' if f.find("type").text == "bool" else 1
+        short_name = text_for(f, "short_name")
+        long_name = text_for(f, "name")
+        add_argument(my_args, parser, aliases, nargs, short_name, long_name)
+    return parser, aliases
+
+
+def add_argument(my_args, parser, aliases, nargs, *names):
+    names = [n for n in names if n]
+    opts = ["-" + n if len(n) == 1 else "--" + n for n in names]
+    verbose_args = '/'.join(opts) + (" (%s)" % nargs)
+
+    for n in names:
+        if n in ['h', 'v'] or n[0:4] == 'help' or n == "version":
+            verbose('add_argument: ignoring help or version: %s' % verbose_args)
+            return
+
+    dest = names[-1]
+    if len(names) > 1:
+        aliases[dest] = names[0:-1]
+        verbose('add_argument: alias for %s: %s' % (dest, ', '.join(aliases[names[-1]])))
+
+    if nargs == 'no':
+        nargs = 0
+        for n in names:
+            if len(n) > 1:
+                parser.add_argument('--no' + n, dest=dest, action='store_const', const='false')
+
+    if nargs:
+        parser_kwargs = {'nargs': nargs}
+        if nargs == '?':
+            parser_kwargs['const'] = my_args.default
+    else:
+        parser_kwargs = {'action': 'store_const', 'const': 'true'}
+    parser_kwargs['dest'] = dest
+    verbose('add_argument: "%s", %s' % ('", "'.join(opts), parser_kwargs))
+    parser.add_argument(*opts, **parser_kwargs)
+
 
 def results(args, aliases, unknown, my_args):
     name = my_args.name
-    args = my_args.cmdargs
-    print "%s_unknown=(%s);' % (name, quote(unknown))
-    print "typeset -A %s_opts" % (name, name)
-    i = 0
-    while i < len(args):
-        arg = args[i]
-        if arg[0] != "-":
-            break
-        if arg == "--":
-            i += 1
-            break
-        while arg[0] == "-":
-            arg = arg[1:]
-        val = "true"
-        if arg not in opts:
-            print "%s_unknown['%s']=true;" % (name, arg)
-        elif opts[arg]:
-            i += 1
-            val = quote(args[i])
-        else:
-            # Maybe a "nofoo" for a "foo"
-            if arg[0:2] == "no" and arg[2:] in opts:
-                arg = arg[2:]
-                val = "false"
-
-        def set_opt(arg):
-            print "%s_opts['%s']='%s';" % (name, arg, val)
-
-        set_opt(arg)
-        if arg in aliases:
-            set_opt(aliases[arg])
-
-        i += 1
-
-    params=args[i:]
-    print "%s_params=();" % (name, )
-    for p in params:
-        print "%s_params+=('%s');" % (name, quote(p))
-
-def main(argv=[sys.argv[0]]):
-    read_help = {
-        'xml': read_help_xml,
-        'text': read_help_text,
-    }
-
-    my_parser = argparse.ArgumentParser()
-    my_parser.add_argument('-n', '--name', nargs=1)
-    my_parser.add_argument('-e', '--exit_on_error', action='store_true')
-    my_parser.add_argument('-o', '--help_opt', nargs=1)
-    my_parser.add_argument('-S', '--help_subcmd', action='store_true')
-    my_parser.add_argument('-s', '--subcmd', action='store_true')
-
-    my_parser.add_argument('-f', '--help_fmt', nargs=1, choices=read_help.keys(), default='text')
-
-    my_parser.add_argument('-x', '--xml', action='store_true')
-
-    my_parser.add_argument('cmd')
-    my_parser.add_argument('cmdargs', nargs=argparse.REMAINDER)
-
-    my_args = my_parser.parse_args(sys.argv[1:])
-
-    if not my_args.help_opt:
-        my_args.help_opt = '--helpxml' if my_args.xml else '--help'
-
-    if my_args.xml:
-        my_args.help_fmt='xml'
-        my_args.keep_going = True # --helpxml exits with non-zero status
-
-    if my_args.help_subcmd or my_args.subcmd:
-        my_args.subcmd = my_args.cmdargs[0]
-        my_args.cmdargs[0] = my_args.cmdargs[1:]
-
-    if not my_args.name:
-        my_args.name = my_args.cmd
-
+    print("%s_cmd=%s;" % (name, quote(my_args.cmd)))
     if my_args.subcmd:
+        print("%s_subcmd=%s;" % (name, quote(my_args.subcmd)))
+    print("%s_args=(%s)" % (name, quote(my_args.cmdargs)))
+    print("typeset -A %s_opts;" % name)
+    print("%s_params=();" % name)
+
+    def set_opt(k, v):
+        print("%s_opts[%s]=%s;" % (name, quote(k), quote(v)))
+
+    param_cnt = 0
+    for k, v in args.iteritems():
+        if v is None:
+            continue
+        if k == '__params__':
+            # it includes the '--' if it is present
+            param_cnt = len(v)
+            if len(v) > 0 and v[0] == '--':
+                v = v[1:]
+            print("%s_params+=(%s);" % (name, quote(v)))
+        else:
+            # If an option is specified multiple times, use
+            # a newline-separated string for the values.
+            if not isinstance(v, basestring):
+                v = '\n'.join(v)
+            set_opt(k, v)
+            if k in aliases:
+                set_opt(aliases[k], v)
+
+    print("%s_args=(%s)" % (name, quote(my_args.cmdargs[:-param_cnt])))
+
+    dash_re = re.compile(r'^-*')
+    unknown_names = [dash_re.sub("", n, 1) for n in unknown]
+    print("%s_unknown=(%s);" % (name, quote(unknown_names)))
+    for n in unknown_names:
+        print("%s_opts[%s]=true" % (name, quote(n)))
+
+
+def cache_dir():
+    return os.path.join(tempfile.gettempdir(), 'parseopts')
+
+
+def clear_cache():
+    cdir = cache_dir()
+    if os.path.exists(cdir):
+        shutil.rmtree(cdir)
+
+
+be_verbose = False
+
+
+def verbose(*params):
+    if be_verbose:
+        print(*params)
+
+
+def get_help(my_args):
+    cache_name = my_args.cmd
+    if my_args.subcmd:
+        cache_name += "_" + my_args.subcmd
         if my_args.help_subcmd:
             help_cmd = ' '.join([my_args.cmd, 'help', my_args.subcmd])
         else:
@@ -149,8 +211,25 @@ def main(argv=[sys.argv[0]]):
     else:
         help_cmd = ' '.join([my_args.cmd, my_args.help_opt])
 
-    print 'help_cmd:', help_cmd
-    ht = ""
+    verbose('help_cmd: %s' % help_cmd)
+    cdir = cache_dir()
+    if not os.path.exists(cdir):
+        os.makedirs(cdir)
+    help_cache = os.path.join(cdir, cache_name)
+    cmd_cache = help_cache + ".cmd"
+
+    # noinspection PyBroadException
+    try:
+        with open(cmd_cache, 'r') as f:
+            cached_cmd = f.read()
+        if cached_cmd == help_cmd:
+            with open(help_cache, 'r') as f:
+                return help_cmd, f.read()
+        os.remove(cmd_cache)
+        os.remove(help_cache)
+    except:
+        pass
+
     try:
         ht = subprocess.check_output(help_cmd, shell=True)
     except subprocess.CalledProcessError as e:
@@ -158,10 +237,92 @@ def main(argv=[sys.argv[0]]):
             raise
         ht = e.output
 
-    parser, aliases = read_help[my_args.help_fmt](ht, my_args)
+    with open(help_cache, 'w') as f:
+        f.write(ht)
+    with open(cmd_cache, 'w') as f:
+        f.write(help_cmd)
+
+    return help_cmd, ht
+
+
+def main(argv=()):
+    read_help = {
+        'xml': read_help_xml,
+        'gnu': read_gnu_help,
+        'google': read_google_help,
+        'blaze': read_blaze_help,
+    }
+
+    # -C must appear alone, and I can't see a way to get argparse to do that, so I do this one check by hand
+
+    if len(argv) == 1 and argv[0] == '-C':
+        clear_cache()
+        return 0
+
+    my_parser = argparse.ArgumentParser()
+    my_parser.add_argument('-n', '--name', nargs=1)
+    my_parser.add_argument('-d', '--default', nargs=1, default='_')
+    my_parser.add_argument('-e', '--exit_on_error', action='store_true')
+    my_parser.add_argument('-o', '--help_opt', nargs=1)
+    my_parser.add_argument('-S', '--help_subcmd', action='store_true')
+    my_parser.add_argument('-s', '--subcmd', action='store_true')
+    my_parser.add_argument('-f', '--help_fmt', nargs=1, choices=read_help.keys())
+    my_parser.add_argument('-x', '--xml', action='store_true')
+    my_parser.add_argument('-C', '--clear_cache', action='store_true')
+    my_parser.add_argument('-V', '--verbose', action='store_true')
+    my_parser.add_argument('cmd')
+    my_parser.add_argument('cmdargs', nargs=argparse.REMAINDER)
+
+    my_args = my_parser.parse_args(argv)
+
+    if my_args.clear_cache and my_args.cmd:
+        print("-C must appear alone")
+        return 1
+
+    global be_verbose
+    be_verbose = my_args.verbose
+
+    if not my_args.help_opt:
+        my_args.help_opt = '--helpxml' if my_args.xml else '--help'
+
+    if my_args.xml:
+        my_args.help_fmt = ['xml']
+        my_args.keep_going = True  # --helpxml exits with non-zero status
+
+    if my_args.cmd == 'blaze' and not my_args.help_fmt:
+        my_args.help_fmt = ['blaze']
+
+    if my_args.help_subcmd or my_args.subcmd:
+        my_args.subcmd = my_args.cmdargs[0]
+        my_args.cmdargs = my_args.cmdargs[1:]
+
+    if not my_args.name:
+        my_args.name = my_args.cmd
+
+    if not my_args.help_fmt:
+        my_args.help_fmt = ['gnu']
+
+    help_cmd, ht = get_help(my_args)
+    verbose('help text:')
+    verbose(ht)
+
+    parser = argparse.ArgumentParser(conflict_handler='resolve')
+    aliases = {}
+
+    verbose('help format: %s' % my_args.help_fmt)
+    # noinspection PyCallingNonCallable
+    read_help[my_args.help_fmt[0]](ht, my_args, parser, aliases)
+    if parser is None:
+        print("No parser found for help command %s", help_cmd, file=sys.stderr)
+        print("Help text:", file=sys.stderr)
+        print(ht, file=sys.stderr)
+        sys.exit(1)
+
+    parser.add_argument('__params__', nargs=argparse.REMAINDER)
     args, unknown = parser.parse_known_args(my_args.cmdargs)
-    results(args, aliases, unknown, my_args)
+    results(vars(args), aliases, unknown, my_args)
     return 0
 
+
 if __name__ == '__main__':
-    sys.exit(main(sys.argv))
+    sys.exit(main(sys.argv[1:]))

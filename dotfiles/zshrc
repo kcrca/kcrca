@@ -192,7 +192,7 @@ zstyle :compinstall filename ~/.zshrc
 
 autoload -Uz compinit
 compinit
-bashcompinit
+which bashcompinit >/dev/null && bashcompinit
 # End of lines added by compinstall
 
 # Quote URL's on the command line automatically
@@ -327,5 +327,35 @@ pdr() {
                 zstyle ':chpwd:' recent-dirs-pushd "$x"
         fi
 }
+
+func zshhist_path() {
+	local f
+	if [[ $LC_TTY == "" ]]; then return; fi
+	f=~/.zsh_hist/${LC_TTY:gs,/,_}
+	f=${f:s,/_,/}
+	echo $f
+}
+
+func zshhist_store() {
+	local f
+	f=`zshhist_path`
+	if [[ $f == "" ]]; then return; fi
+	if [[ ! -d ~/.zsh_hist ]]; then return; fi
+	(
+	    [[ $d != "" ]] && echo g4dir $t/$d >> $f
+	    echo cd $PWD
+	) >! $f
+}
+precmd_functions+=(zshhist_store)
+
+func zshhist_restore() {
+	local f
+	f=`zshhist_path`
+	if [[ $f == "" ]]; then return; fi
+	[[ -f $f ]] && . $f
+}
+zshhist_restore
+
+export LC_TTY=${LC_TTY:-`tty`}
 
 domain_source zshrc
