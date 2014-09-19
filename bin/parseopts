@@ -1,0 +1,167 @@
+#!/usr/bin/env python
+#
+# Usage:
+# 	parseopts varname cmd args
+#
+# Runs "cmd --helpxml" to get a list of options and whether they take
+# arguments.  Prints out zsh commands that set variables about the specified
+# command arguments based on the --helpxml data. If varname is "foo", then
+# the output sets:
+#
+# 	* foo_opts["xyz"] to be the value of the "xyz" option, if it
+# 	  is specified. If "xyz" is a boolean option, sets it to "true"
+# 	* foo_params to be the params of the args after the options
+# 	* foo_unknown["xyz"] is true if the the "xyz" option is in the
+# 	  args, but not known from --helpxml
+
+import argparse
+import sys
+import subprocess
+import string
+import xml.etree.ElementTree as ET
+
+def quote(s):
+    if isinstance(s, basestring):
+        return "'%s'" % string.replace(s, "'", "''")
+    return ', '.join([quote(i) for i in s])
+
+def textFor(f, n):
+    node  = f.find(n)
+    if node is None:
+	return None
+    return node.text
+
+def read_help_text(ht, my_args):
+    pass
+
+def read_help_xml(ht, my_args):
+    parser = argsparse.ArgumentParser()
+    aliases = {}
+    root = ET.fromstring(ht)
+    for f in root.findall("flag"):
+        hasArgs = f.find("type").text != "bool"
+        long_name = textFor(f, "name")
+        short_name = textFor(f, "short_name")
+        if long_name and short_name:
+            aliases[long_name] = short_name
+        if not hasArgs:
+                if long_name:
+                    if short_name:
+                        parser.add_argument(short_name, long_name, action='store_true')
+                    else:
+                        parser.add_argument(long_name, action='store_true')
+                    parser.add_argument('no' + long_name, dest=long_name, action='store_false')
+                else:
+                    parser.add_argument(short_name, action='store_true')
+        else:
+                if long_name
+                    if short_name:
+                        parser.add_argument(short_name, long_name, nargs=1)
+                    else:
+                        parser.add_argument(long_name, nargs=1)
+                else:
+                    parser.add_argument(short_name, nargs=1)
+    parser.add_argument('params', nargs=argparse.REMAINDER)
+    return parser, aliases
+
+def results(args, aliases, unknown, my_args):
+    name = my_args.name
+    args = my_args.cmdargs
+    print "%s_unknown=(%s);' % (name, quote(unknown))
+    print "typeset -A %s_opts" % (name, name)
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg[0] != "-":
+            break
+        if arg == "--":
+            i += 1
+            break
+        while arg[0] == "-":
+            arg = arg[1:]
+        val = "true"
+        if arg not in opts:
+            print "%s_unknown['%s']=true;" % (name, arg)
+        elif opts[arg]:
+            i += 1
+            val = quote(args[i])
+        else:
+            # Maybe a "nofoo" for a "foo"
+            if arg[0:2] == "no" and arg[2:] in opts:
+                arg = arg[2:]
+                val = "false"
+
+        def set_opt(arg):
+            print "%s_opts['%s']='%s';" % (name, arg, val)
+
+        set_opt(arg)
+        if arg in aliases:
+            set_opt(aliases[arg])
+
+        i += 1
+
+    params=args[i:]
+    print "%s_params=();" % (name, )
+    for p in params:
+        print "%s_params+=('%s');" % (name, quote(p))
+
+def main(argv=[sys.argv[0]]):
+    read_help = {
+        'xml': read_help_xml,
+        'text': read_help_text,
+    }
+
+    my_parser = argparse.ArgumentParser()
+    my_parser.add_argument('-n', '--name', nargs=1)
+    my_parser.add_argument('-e', '--exit_on_error', action='store_true')
+    my_parser.add_argument('-o', '--help_opt', nargs=1)
+    my_parser.add_argument('-S', '--help_subcmd', action='store_true')
+    my_parser.add_argument('-s', '--subcmd', action='store_true')
+
+    my_parser.add_argument('-f', '--help_fmt', nargs=1, choices=read_help.keys(), default='text')
+
+    my_parser.add_argument('-x', '--xml', action='store_true')
+
+    my_parser.add_argument('cmd')
+    my_parser.add_argument('cmdargs', nargs=argparse.REMAINDER)
+
+    my_args = my_parser.parse_args(sys.argv[1:])
+
+    if not my_args.help_opt:
+        my_args.help_opt = '--helpxml' if my_args.xml else '--help'
+
+    if my_args.xml:
+        my_args.help_fmt='xml'
+        my_args.keep_going = True # --helpxml exits with non-zero status
+
+    if my_args.help_subcmd or my_args.subcmd:
+        my_args.subcmd = my_args.cmdargs[0]
+        my_args.cmdargs[0] = my_args.cmdargs[1:]
+
+    if not my_args.name:
+        my_args.name = my_args.cmd
+
+    if my_args.subcmd:
+        if my_args.help_subcmd:
+            help_cmd = ' '.join([my_args.cmd, 'help', my_args.subcmd])
+        else:
+            help_cmd = ' '.join([my_args.cmd, my_args.subcmd, my_args.help_opt])
+    else:
+        help_cmd = ' '.join([my_args.cmd, my_args.help_opt])
+
+    print 'help_cmd:', help_cmd
+    ht = ""
+    try:
+        ht = subprocess.check_output(help_cmd, shell=True)
+    except subprocess.CalledProcessError as e:
+        if my_args.exit_on_error:
+            raise
+        ht = e.output
+
+    parser, aliases = read_help[my_args.help_fmt](ht, my_args)
+    args, unknown = parser.parse_known_args(my_args.cmdargs)
+    results(args, aliases, unknown, my_args)
+    return 0
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))
