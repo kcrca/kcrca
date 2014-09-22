@@ -3,16 +3,6 @@
 # Parse the help output of a command to understand its syntax, then take a
 # particular invocation of that command and parse it into a set of shell
 # commands that can be used by a shell script.
-# Runs "cmd --helpxml" to get a list of options and whether they take
-# arguments.  Prints out zsh commands that set variables about the specified
-# command arguments based on the --helpxml data. If varname is "foo", then
-# the output sets:
-#
-# * foo_opts["xyz"] to be the value of the "xyz" option, if it
-# is specified. If "xyz" is a boolean option, sets it to "true"
-# * foo_params to be the params of the args after the options
-# * foo_unknown["xyz"] is true if the the "xyz" option is in the
-# args, but not known from --helpxml
 
 from __future__ import print_function
 
@@ -59,8 +49,14 @@ class TextReader(object):
         raise NotImplementedError
 
 
+def pat(my_args, pattern):
+    if my_args.one_dash:
+        return string.replace(pattern, r'--', r'--?')
+    return pattern
+
+
 def read_gnu_help(ht, my_args, parser, aliases):
-    one_opt = r'(?:-([0-9a-z_]) ?([^, ]+)?|--([-0-9a-z_]+)[ =]?([^, ]+)?)'
+    one_opt = pat(my_args, r'(?:-([0-9a-z_]) ?([^, ]+)?|--([-0-9a-z_]+)[ =]?([^, ]+)?)')
     opt_spec = r'^ *(?:' + one_opt + ', )*' + one_opt
     one_opt_re = re.compile(one_opt, re.IGNORECASE)
     opt_spec_re = re.compile(opt_spec, re.IGNORECASE)
@@ -87,14 +83,14 @@ def read_gnu_help(ht, my_args, parser, aliases):
 
 
 def read_google_help(ht, my_args, parser, aliases):
-    for m in re.findall(r'^  (?:-(.),)?--(\[no\])?([-a-z0-9_]+)', ht, re.MULTILINE + re.IGNORECASE):
+    for m in re.findall(pat(my_args, r'^  (?:-(.),)?--(\[no\])?([-a-z0-9_]+)'), ht, re.MULTILINE + re.IGNORECASE):
         short_name, long_name, nargs = (m[0] if len(m[0]) > 0 else None, m[2], 0 if len(m[1]) > 0 else 1)
         add_argument(my_args, parser, aliases, nargs, short_name, long_name)
     return parser, aliases
 
 
 def read_blaze_help(ht, my_args, parser, aliases):
-    for m in re.findall(r'^  --(\[no\])?([-a-z0-9_]+) (?:\[-(.)\])?', ht, re.MULTILINE + re.IGNORECASE):
+    for m in re.findall(pat(my_args, r'^  --(\[no\])?([-a-z0-9_]+) (?:\[-(.)\])?'), ht, re.MULTILINE + re.IGNORECASE):
         short_name, long_name, nargs = (m[2] if len(m[2]) > 0 else None, m[1], 'no' if len(m[0]) > 0 else 1)
         add_argument(my_args, parser, aliases, nargs, short_name, long_name)
     return parser, aliases
@@ -113,6 +109,10 @@ def read_help_xml(ht, my_args, parser, aliases):
 def add_argument(my_args, parser, aliases, nargs, *names):
     names = [n for n in names if n]
     opts = ["-" + n if len(n) == 1 else "--" + n for n in names]
+    if my_args.one_dash:
+        for n in names:
+            if len(n) > 1:
+                opts.append('-' + n)
     verbose_args = '/'.join(opts) + (" (%s)" % nargs)
 
     for n in names:
@@ -151,8 +151,8 @@ def results(args, aliases, unknown, my_args):
     print("typeset -A %s_opts;" % name)
     print("%s_params=();" % name)
 
-    def set_opt(k, v):
-        print("%s_opts[%s]=%s;" % (name, quote(k), quote(v)))
+    def set_opt(var, v):
+        print("%s_opts[%s]=%s;" % (name, quote(var), quote(v)))
 
     param_cnt = 0
     for k, v in args.iteritems():
@@ -260,15 +260,18 @@ def main(argv=()):
         return 0
 
     my_parser = argparse.ArgumentParser()
-    my_parser.add_argument('-n', '--name', nargs=1)
-    my_parser.add_argument('-d', '--default', nargs=1, default='_')
-    my_parser.add_argument('-e', '--exit_on_error', action='store_true')
-    my_parser.add_argument('-o', '--help_opt', nargs=1)
-    my_parser.add_argument('-S', '--help_subcmd', action='store_true')
-    my_parser.add_argument('-s', '--subcmd', action='store_true')
-    my_parser.add_argument('-f', '--help_fmt', nargs=1, choices=read_help.keys())
-    my_parser.add_argument('-x', '--xml', action='store_true')
-    my_parser.add_argument('-C', '--clear_cache', action='store_true')
+    my_parser.add_argument('-n', '--name', nargs=1, help="leading name for generated variables")
+    my_parser.add_argument('-d', '--default', nargs=1, default='_',
+                           help="default value for options with optional parameters")
+    my_parser.add_argument('-e', '--exit_on_error', action='store_true',
+                           help="exit if the help command exists with error status")
+    my_parser.add_argument('-o', '--help_opt', nargs=1, help="help option to use (e.g., --help)")
+    my_parser.add_argument('-S', '--help_subcmd', action='store_true', help="format is cmd help subcmd (implies -s)")
+    my_parser.add_argument('-s', '--subcmd', action='store_true', help="the word after the cmd is a subcmd")
+    my_parser.add_argument('-f', '--help_fmt', nargs=1, choices=read_help.keys(), help="help text format")
+    my_parser.add_argument('-x', '--xml', action='store_true', help="xml help; implies -o --helpxml -f xml")
+    my_parser.add_argument('-1', '--one_dash', action='store_true', help="multichar options can be -foo or --foo")
+    my_parser.add_argument('-C', '--clear_cache', action='store_true', help="clear out cached help text and exit")
     my_parser.add_argument('-V', '--verbose', action='store_true')
     my_parser.add_argument('cmd')
     my_parser.add_argument('cmdargs', nargs=argparse.REMAINDER)
@@ -287,10 +290,10 @@ def main(argv=()):
 
     if my_args.xml:
         my_args.help_fmt = ['xml']
-        my_args.keep_going = True  # --helpxml exits with non-zero status
 
-    if my_args.cmd == 'blaze' and not my_args.help_fmt:
-        my_args.help_fmt = ['blaze']
+    # e.g., if cmd is blaze and fmt isn't set, the use 'blaze' as the fmt
+    if my_args.cmd in read_help.keys() and not my_args.help_fmt:
+        my_args.help_fmt = [my_args.cmd]
 
     if my_args.help_subcmd or my_args.subcmd:
         my_args.subcmd = my_args.cmdargs[0]
