@@ -169,14 +169,17 @@ alias ls >/dev/null && unalias ls
 
 function ereg
 {
-    egrep '\.[a-z][a-z0-9]*:[0-9]+:' k
+    local k
+    k=k
+    [[ -f .k ]] && k=.k
+    egrep '\.[a-z][a-z0-9]*:[0-9]+:' $k
 }
 
 function er
 {
     if [[ x$1 = x-c ]]; then
 	shift
-	for f in `ereg | error -n |& sed -n -e '/^File "/{' -e 's/File "//' -e 's/".*//p' -e '}' ` ; do
+	for f in `ereg $k| error -n |& sed -n -e '/^File "/{' -e 's/File "//' -e 's/".*//p' -e '}' ` ; do
 	    test -w $f || cco -nc $f
 	done
     fi
