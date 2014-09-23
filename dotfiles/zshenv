@@ -166,6 +166,8 @@ alias activate='. bin/activate ; rs'
 
 #Some systems alias this to color stuff, and yuck, so no
 alias ls >/dev/null && unalias ls
+#This makes it sort '.'s first, rather put (say) ".foo" next to "faz"
+alias ls="LANG=C ls"
 
 function ereg
 {
