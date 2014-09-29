@@ -346,15 +346,6 @@ func zshhist_store() {
 	    echo cd $PWD
 	) >! $f
 }
-precmd_functions+=(zshhist_store)
-
-func zshhist_restore() {
-	local f
-	f=`zshhist_path`
-	if [[ $f == "" ]]; then return; fi
-	[[ -f $f ]] && . $f
-}
-zshhist_restore
 
 export LC_TTY=${LC_TTY:-`tty`}
 
