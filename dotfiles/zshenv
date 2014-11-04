@@ -49,22 +49,19 @@ unalias set unset
 #	- Set the MANPATH and LD_LIBRARY_PATH to match (why shouldn't they?)
 function setpath {
     # Add the elements of $path not in the parameter list
+    local -a newpath
     newpath=($@)
     newpath=($newpath ${path:|newpath})
     #echo $#newpath ; echo ${(F)newpath}
 
     # expand every "bin" to "sbin"
+    local -a -U np
+    local dir
     np=()
-    typeset -A seen
     for dir in $newpath; do
-	# dups can exist in the case of $X/bin and $Y/bin on systems where
-	# neither X nor Y are set in the env.
-	if [[ $seen[$dir] = "" ]]; then
-	    np+=$dir
-	    if [[ ${dir%/bin} != $dir ]]; then
-		np+=${dir%/bin}/sbin
-	    fi
-	    seen[$dir]=1
+	np+=$dir
+	if [[ ${dir%/bin} != $dir ]]; then
+	    np+=${dir%/bin}/sbin
 	fi
     done
     newpath=($np)
@@ -81,6 +78,7 @@ function setpath {
     #echo $#newpath ; echo ${(F)newpath}
 
     if [[ x$newpath != $path ]]; then
+	local -a newmp newlp
 	path=($newpath)
 
 	newmp=(`replacepath bin man`)
@@ -98,8 +96,10 @@ function setpath {
 }
 
 func replacepath() {
-    from=$1
-    to=$2
+    local from=$1
+    local to=$2
+    local -a newpath
+    local p
     newpath=()
     for p in $path; do
 	if [[ ${p%/$from} != $p ]]; then
@@ -124,6 +124,7 @@ if (( ${+JAVA_HOME} == 0 )); then
     if [[ -x /usr/libexec/java_home ]]; then
 	JAVA_HOME=`/usr/libexec/java_home`
     else
+	local f
 	for f in  \
 	    /System/Library/Frameworks/JavaVM.framework/Versions/CurrentJDK/Home  \
 	    /usr/local/buildtools/java/jdk \
@@ -145,7 +146,7 @@ if [[ -n $VIRTUAL_ENV ]]; then
     export VIRTUAL_ENV_BIN=$VIRTUAL_ENV/bin
 fi
 
-setpath . ~/bin ~/kcrca/bin ~/google/bin /usr/local/git/current/bin ~/.homebrew/bin $VIRTUAL_ENV_BIN /Library/Frameworks/Python.framework/Versions/2.7/bin /Developer/usr/bin /usr/X11R6/bin $JAVA_HOME/bin $M2_HOME/bin /usr/local/bin /bin /usr/bin /usr/local/ImageMagick/bin /opt/local/bin ~/xyzzy
+setpath . ~/bin ~/kcrca/bin ~/google/bin /usr/local/git/current/bin ~/.homebrew/bin ~/depot_tools $VIRTUAL_ENV_BIN /Library/Frameworks/Python.framework/Versions/2.7/bin /Developer/usr/bin /usr/X11R6/bin $JAVA_HOME/bin $M2_HOME/bin /usr/local/bin /bin /usr/bin /usr/local/ImageMagick/bin /opt/local/bin ~/xyzzy
 
 export NETHACKOPTIONS='reserved:u-unicorn/t-touchstone/k-key/k-credit/k-lock pick/k-osaku/f-camera/e-pick-axe/e-mattock/e-broad pick/s-sack/s-bag/b-blindfold/c-stethoscope/l-lamp/l-lantern/l-candle,name:BlueMeanie,autopickup,pickup_types:$")[?+!=/,hilite_pet,showexp,dogname:Jazz,catname:Shamus,horsename:Shadowfax,fruit:Beatle,disclose:ia,lit_corridor,!news,time,perm_invent,eight_bit_tty,!help,pushweapon,!legacy,dungeon=\ |--------||.-|++¶¥¸°#<>«»º±\\¬{}÷£¬¬##·©},objects=])[="(%\!?§/$*`0_.'
 
@@ -181,6 +182,7 @@ function er
 {
     if [[ x$1 = x-c ]]; then
 	shift
+	local f
 	for f in `ereg $k| error -n |& sed -n -e '/^File "/{' -e 's/File "//' -e 's/".*//p' -e '}' ` ; do
 	    test -w $f || cco -nc $f
 	done
@@ -192,9 +194,10 @@ function er
     fi
 }
 
+# Set the value of "l" based on the output of grep
 function _setl
 {
-    cmd=$1 ; shift
+    local cmd=$1 ; shift
 
     # gather up options to pass on to grep
     # not using getopts because that breaks things apart
@@ -203,6 +206,7 @@ function _setl
     # This won't handle the legal '-m 10', because '10' will
     # be interpreted as the pattern, but this is hard to fix and
     # easy for the user to work around (just use '-m10')
+    local -a opts
     opts=()
     while true; do
 	case "$1" in
@@ -217,7 +221,7 @@ function _setl
 	esac;
     done
 
-    pat="$1"
+    local pat="$1"
     shift
     if [[ ! -n $pat || ! -n "$*" ]]; then
 	echo usage: $cmd pattern file ... 1>&2
@@ -240,8 +244,8 @@ function setl
     else
 	# I don't know why I have to do the thing with COLUMNS here but I do
 	# otherwise it uses the default of 80
-	cnt=`COLUMNS=$COLUMNS ls -Cq "$l[@]" | wc -l`
-	if [[ $cnt -gt 20 ]]; then
+	local cnt=`COLUMNS=$COLUMNS ls -Cq "$l[@]" | wc -l`
+	if (( cnt > 20 )); then
 	    ls -m "$l[@]"
 	else
 	    ls "$l[@]"
@@ -256,9 +260,11 @@ function vl
 	return 1
     fi
 
+    local -a vargs
     vargs=()
-    before=
-    after=
+    local before=
+    local after=
+    local opt
     while getopts ':iw' opt; do
         case $opt in
 	  i) vargs+=('+set ic') ;;
@@ -266,7 +272,7 @@ function vl
 	esac
     done;
     shift `expr $OPTIND - 1`
-    pat="$1"
+    local pat="$1"
     echo vi $vargs +/"$before$pat$after" "$l[@]"
     vi $vargs +/"$before$pat$after" "$l[@]"
 }
@@ -290,7 +296,7 @@ function ma
 {
     make $* |& tee k
     # hack: For some reason, subscripting into pipescript just doesn't work
-    x=`echo $pipestatus | sed -e's/ .*//'`
+    local x=`echo $pipestatus | sed -e's/ .*//'`
     beep
     return $x
 }
@@ -309,16 +315,22 @@ function domain_source
     fi
     local -a parts
     parts=(${(s:.:)domains})
-    local cur
-    for p in ${(aO)parts}; do
-	cur=.$p$cur
+    local cur p f
+    for p in "" ${(aO)parts}; do
+	[[ $p != "" ]] && cur=.$p$cur
 	f=$HOME/.zsh$cur/$1
 	if [[ -f $f ]]; then
 	    _domain_source+=$f
 	    . $f
 	fi
+	f=$HOME/.zsh$cur/funcs
+	if [[ -e $f ]]; then
+	    fpath+=$f
+	fi
     done
 }
+
+typeset -U fpath
 
 domain_source zshenv
 

@@ -1,0 +1,14 @@
+#!/bin/zsh
+
+autoload -Uz vcs_info
+
+if [[ $1 == -p ]] then 
+    p="$2"
+    shift 2
+fi
+
+zstyle ':vcs_info:*' actionformats "${p}vcs='%s'; ${p}branch='%b'; ${p}revision='%i'; ${p}staged='%c'; ${p}unstaged='%u'; ${p}dir='%R'; ${p}rep='%r'; ${p}subdir='%S'; ${p}misc='%m'; ${p}action='%a';"
+zstyle ':vcs_info:*' formats       "${p}vcs='%s'; ${p}branch='%b'; ${p}revision='%i'; ${p}staged='%c'; ${p}unstaged='%u'; ${p}dir='%R'; ${p}rep='%r'; ${p}subdir='%S'; ${p}misc='%m';"
+
+vcs_info
+echo "$vcs_info_msg_0_"

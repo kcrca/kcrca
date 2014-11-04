@@ -10,22 +10,46 @@ HISTFILE=~/.zsh_history
 FIGNORE='~:.bak:.o:CVS'		# Ignore during file completion
 
 build_prompt() {
+    # The prompt format is :user@host[vcs_info]:
+
+    # If the user is known/expected, "user@" is ommitted (RP_BEFORE)
     RP_BEFORE=
     if [[ $USER != arnold && $USER != root && $USER != kcrca ]]; then
 	RP_BEFORE="%U%n%u@"
     fi
 
+    # If there is no useful vcs info, "[vcs_info]" is ommited (RP_AFTER)
     RP_AFTER=
     if [[ -n $VIRTUAL_ENV ]]; then
 	RP_AFTER="["`basename $VIRTUAL_ENV`"]"
-    elif which g4client > /dev/null && G4_CLIENT=`g4client`; then
-	export G4_CLIENT
-	RP_AFTER="[%B$G4_CLIENT%b]"
+    fi
+    #if which g4client > /dev/null && G4_CLIENT=`g4client`; then
+	#export G4_CLIENT
+	#RP_AFTER="$RP_AFTER[$G4_CLIENT]"
+    #fi
+    vcs_info
+    if [[ $vcs_info_msg_0_ != "" ]]; then
+	# Remove a trailing slash, which means "no branch"
+	RP_AFTER="${RP_AFTER}[${vcs_info_msg_0_%/}]"
     fi
 
-    PROMPT="%h%(!. #.>) "
-    RPROMPT="%(0?..%S***%s ):$RP_BEFORE%m$RP_AFTER:"
+    local i up rp
+    for (( i = 0; i < SHLVL; i++ )) do
+	up="$up>"
+	rp="$rp#"
+    done
+    PROMPT="%h%(!. $rp.$up) "
+    RPROMPT="%(0?..%S***%s ):$RP_BEFORE%m%B$RP_AFTER%b:"
 }
+
+autoload -Uz vcs_info
+zstyle ':vcs_info:*' formats '%r/%b'
+zstyle ':vcs_info:*' actionformats '%r/%b'
+
+#zstyle ':vcs_info:*' actionformats 's:%s, b:%b, a:%a, i:%i, c:%c, u:%u, R:%R, r:%r, S:%S, m:%m'
+#zstyle ':vcs_info:*'       formats 's:%s, b:%b, i:%i, c:%c, u:%u, R:%R, r:%r, S:%S, m:%m'
+#zstyle ':vcs_info:(sv[nk]|bzr):*' branchformat '%b%F{1}:%F{3}%r'
+
 build_prompt
 
 zstyle -d ':cmd_notify:'

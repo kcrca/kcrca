@@ -4,7 +4,7 @@ if [[ ! -z $SSH_CLIENT ]]; then
     REMOTE_HOST=${${(z)SSH_CLIENT}[1]}
 else # for some reason, who am i sometimes says "(  )" for local ttys, which
     # confuses the checks below, so we strip out such constructs
-    host=(`who am i | sed -e 's/( *)//'`)
+    local host=(`who am i | sed -e 's/( *)//'`)
     if [[ ! -z "$host[6]" ]]; then
 	REMOTE_HOST=$host
 	case "$REMOTE_HOST" in
