@@ -18,25 +18,31 @@ typeset -a prompt_opts
 for o in ${(k)prompts}; do
     prompt_opts+="-$o"
 done
-zparseopts -A opts -D -E -K A: p: ${(k)^prompts}=prompt_opts
+zparseopts -A opts -D -E -K A: p: v ${(k)^prompts}=prompt_opts
 if [[ ${1[1]} == "-" ]]; then
-    (
-	echo "Unknown option(s): $*"
-	echo Usage: ${0:t} \[ -p prefix -${(k)^prompts} \] \[dir\]
-    ) 1>&2
+    cat 1>&2 << EOF
+"Unknown option(s): $*"
+Usage: ${0:t} [ -A assoc -p prefix -v -${(k)^prompts} ] [dir]
+    -A assoc  put values in associative array'
+    -p prefix name variables with prefix
+    -v        print out values without names
+EOF
     exit 1
 fi
 
 p="$opts[-p]"
 
 func addVar() {
-    echo -n "$1"
-    if [[ $opts[-A] == "" ]]; then
-	echo -n "$2"
+    if (( ${+opts[-v]} )) ; then
+	echo "%$2"
     else
-	echo -n "$opts[-A][$2]"
+	if (( ${+opts[-A]} )); then
+	    echo -n "$opts[-A][$1]"
+	else
+	    echo -n "$1"
+	fi
+	echo "='%$2';"
     fi
-    echo "='%$3';"
 }
 
 (( ${+opts[-A]} )) && echo typset -A $opts[-A]\;
@@ -44,13 +50,12 @@ for f in "${(@)prompt_opts}"; do
     k=$f[2,2]
     n=$prompts[$k]
     if [[ $f != "-a" ]] then
-	fmt=$(addVar "$fmt" "$p$n" $k)"\n"
+	fmt="$fmt"$(addVar "$p$n" $k)"\n"
     else
-	actfmt=$(addVar "$actfmt" "$p$n" $k)"\n"
+	actfmt="$actfmt"$(addVar "$p$n" $k)"\n"
     fi
 done
 actfmt+="$fmt"
-set +x
 
 zstyle ':vcs_info:*' actionformats "$actfmt"
 zstyle ':vcs_info:*' formats       "$fmt"
