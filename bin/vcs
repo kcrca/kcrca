@@ -2,13 +2,49 @@
 
 autoload -Uz vcs_info
 
-if [[ $1 == -p ]] then 
-    p="$2"
-    shift 2
+typeset -A prompts
+prompts[s]="vcs"
+prompts[b]="branch"
+prompts[i]="revision"
+prompts[c]="staged"
+prompts[u]="unstaged"
+prompts[R]="dir"
+prompts[r]="rep"
+prompts[S]="subdir"
+prompts[m]="misc"
+prompts[a]="action"
+
+typeset -A opts prefix
+for o in ${(k)prompts}; do
+    opts+=("-$o" "")
+done
+zparseopts -D -E -K p:=prefix ${(k)^prompts}=opts
+if [[ ${1[1]} == "-" ]]; then
+    (
+	echo "Unknown option(s): $*"
+	echo Usage: ${0:t} \[ -p prefix -${(k)^prompts} \] \[dir\]
+    ) 1>&2
+    exit 1
 fi
 
-zstyle ':vcs_info:*' actionformats "${p}vcs='%s'; ${p}branch='%b'; ${p}revision='%i'; ${p}staged='%c'; ${p}unstaged='%u'; ${p}dir='%R'; ${p}rep='%r'; ${p}subdir='%S'; ${p}misc='%m'; ${p}action='%a';"
-zstyle ':vcs_info:*' formats       "${p}vcs='%s'; ${p}branch='%b'; ${p}revision='%i'; ${p}staged='%c'; ${p}unstaged='%u'; ${p}dir='%R'; ${p}rep='%r'; ${p}subdir='%S'; ${p}misc='%m';"
+p="$prefix[-p]"
 
+for f in "${(@k)opts}"; do
+    if [[ $f != "-a" ]] then
+	k=$f[2,2]
+	n=$prompts[$k]
+	fmt="$fmt$p$n='%$k';\n"
+    fi
+done
+# strip off leading space
+actfmt="$fmt"
+(( ${+opts[-a]} )) && actfmt+="$actfmt$p$prompts[a]='%a';\n"
+
+zstyle ':vcs_info:*' actionformats "$actfmt"
+zstyle ':vcs_info:*' formats       "$fmt"
+
+if [[ "$1" != "" ]]; then
+    cd $1 || exit 1
+fi
 vcs_info
-echo "$vcs_info_msg_0_"
+echo -n "$vcs_info_msg_0_"
