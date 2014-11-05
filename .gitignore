@@ -1,4 +1,5 @@
 ?
+*.bak
 .idea
 .*.swp
 *.o

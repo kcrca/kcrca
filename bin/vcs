@@ -14,11 +14,11 @@ prompts[S]="subdir"
 prompts[m]="misc"
 prompts[a]="action"
 
-typeset -A opts prefix
+typeset -a prompt_opts
 for o in ${(k)prompts}; do
-    opts+=("-$o" "")
+    prompt_opts+="-$o"
 done
-zparseopts -D -E -K p:=prefix ${(k)^prompts}=opts
+zparseopts -A opts -D -E -K A: p: ${(k)^prompts}=prompt_opts
 if [[ ${1[1]} == "-" ]]; then
     (
 	echo "Unknown option(s): $*"
@@ -27,18 +27,30 @@ if [[ ${1[1]} == "-" ]]; then
     exit 1
 fi
 
-p="$prefix[-p]"
+p="$opts[-p]"
 
-for f in "${(@k)opts}"; do
+func addVar() {
+    echo -n "$1"
+    if [[ $opts[-A] == "" ]]; then
+	echo -n "$2"
+    else
+	echo -n "$opts[-A][$2]"
+    fi
+    echo "='%$3';"
+}
+
+(( ${+opts[-A]} )) && echo typset -A $opts[-A]\;
+for f in "${(@)prompt_opts}"; do
+    k=$f[2,2]
+    n=$prompts[$k]
     if [[ $f != "-a" ]] then
-	k=$f[2,2]
-	n=$prompts[$k]
-	fmt="$fmt$p$n='%$k';\n"
+	fmt=$(addVar "$fmt" "$p$n" $k)"\n"
+    else
+	actfmt=$(addVar "$actfmt" "$p$n" $k)"\n"
     fi
 done
-# strip off leading space
-actfmt="$fmt"
-(( ${+opts[-a]} )) && actfmt+="$actfmt$p$prompts[a]='%a';\n"
+actfmt+="$fmt"
+set +x
 
 zstyle ':vcs_info:*' actionformats "$actfmt"
 zstyle ':vcs_info:*' formats       "$fmt"
