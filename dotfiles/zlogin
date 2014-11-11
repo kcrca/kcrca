@@ -15,4 +15,4 @@ else # for some reason, who am i sometimes says "(  )" for local ttys, which
 fi
 export REMOTE_HOST DISPLAY
 
-domain_source zlogin
+domain_source $0

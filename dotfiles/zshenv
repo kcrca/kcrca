@@ -291,9 +291,10 @@ function md
     make $* >&! k &
 }
 
-_domain_source=()
 function domain_source
 {
+    src=${1:t}
+    src=${src#.}
     local domains=`hostname -f`
     if [[ -z "$domains" ]]; then
     	return
@@ -303,21 +304,16 @@ function domain_source
     local cur p f
     for p in "" ${(aO)parts}; do
 	[[ $p != "" ]] && cur=.$p$cur
-	f=$HOME/.zsh$cur/$1
-	if [[ -f $f ]]; then
-	    _domain_source+=$f
-	    . $f
-	fi
+	f=$HOME/.zsh$cur/$src
+	[[ -f $f ]] && . $f
 	f=$HOME/.zsh$cur/funcs
-	if [[ -e $f ]]; then
-	    fpath+=$f
-	fi
+	[[ -e $f ]] && fpath+=$f
     done
 }
 
 typeset -U fpath
 
-domain_source zshenv
+domain_source $0
 
 XTERM=/usr/bin/X11/xterm
 
