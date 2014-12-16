@@ -31,16 +31,16 @@ for dir in $swps; do
     if (( verbose )); then
 	echo Checking $dir
     fi
-    modified=(`cd $dir && vi -r |& awk '
+    modified+=($(cd $dir && vi -r |& awk '
 	    BEGIN { pwd = "'$top'/" }
-	    /file name: (.*)/ { file = $3 ; sub(pwd, "", file) ; file = substr(file, 1, length(file) - 1) }
-	    /modified: YES/ { if (length(file) > 1) { printf("'$dir/'%s ", file) } }
-	    /In directory/ { exit }'`)
+	    /file name: (.*)/ { file = $3; sub("\\s*$", "", file) }
+	    /modified: YES/ { if (length(file) > 1) { print(file) } }
+	    /In directory/ { exit }'))
 done
 
 if (( $#modified > 0 )); then
     echo '***' Unwritten files:
-    ls $modified
+    eval ls $modified
     #echo $modified | tr ' ' '\n' | sed -e 's/^/  /'
 fi
 exit $#modified
