@@ -16,4 +16,4 @@ else
 fi
 export REMOTE_HOST DISPLAY
 
-domain_source $0
+domain_source zlogin

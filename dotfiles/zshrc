@@ -374,4 +374,4 @@ func zshhist_store() {
 
 export LC_TTY=${LC_TTY:-`tty`}
 
-domain_source $0
+domain_source zshrc

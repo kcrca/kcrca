@@ -252,12 +252,13 @@ function vl
     local opt
     while getopts ':iw' opt; do
         case $opt in
-	  i) vargs+=('+set ic') ;;
-	  w) before='\<' ; after='\>' ;;
+	  i) before='\c' ;;
+	  w) before='<' ; after='>' ;;
 	esac
     done;
     shift `expr $OPTIND - 1`
     local pat="$1"
+    before='\v'"$before"
     echo vi $vargs +/"$before$pat$after" "$l[@]"
     vi $vargs +/"$before$pat$after" "$l[@]"
 }
@@ -314,7 +315,7 @@ function domain_source
 
 typeset -U fpath
 
-domain_source $0
+domain_source zshenv
 
 XTERM=/usr/bin/X11/xterm
 
