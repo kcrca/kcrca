@@ -309,6 +309,7 @@ function domain_source
 	f=$HOME/.zsh$cur/funcs
 	[[ -e $f ]] && fpath+=$f
     done
+    return 0
 }
 
 typeset -U fpath

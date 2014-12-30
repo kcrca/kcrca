@@ -9,43 +9,46 @@ HISTFILE=~/.zsh_history
 
 FIGNORE='~:.bak:.o:CVS'		# Ignore during file completion
 
+# Remember the top-most shell level that has a prompt (expected this to always
+# be 1, but on the mac it's 2, counting the login program itself I think).
+export TOPSHLVL=${TOPSHLVL:-$SHLVL}
+
 build_prompt() {
-    # The prompt format is :user@host[vcs_info]:
+    # The right-side prompt format is :user@host[vcs_info]:
 
-    # If the user is known/expected, "user@" is ommitted (RP_BEFORE)
-    RP_BEFORE=
+    # If the user is known/expected, "user@" is ommitted
+    local user
     if [[ $USER != arnold && $USER != root && $USER != kcrca ]]; then
-	RP_BEFORE="%U%n%u@"
+	user="%U%n%u@"
     fi
 
-    # If there is no useful vcs info, "[vcs_info]" is ommited (RP_AFTER)
-    RP_AFTER=
+    # If there is no useful vcs info, "[vcs_info]" is ommited
+    local vcs_info
     if [[ -n $VIRTUAL_ENV ]]; then
-	RP_AFTER="["`basename $VIRTUAL_ENV`"]"
+	vcs_info="["`basename $VIRTUAL_ENV`"]"
     fi
-    #if which g4client > /dev/null && G4_CLIENT=`g4client`; then
-	#export G4_CLIENT
-	#RP_AFTER="$RP_AFTER[$G4_CLIENT]"
-    #fi
     vcs_info
     if [[ $vcs_info_msg_0_ != "" ]]; then
 	# Remove a trailing slash, which means "no branch"
-	RP_AFTER="${RP_AFTER}[${vcs_info_msg_0_%/}]"
+	vcs_info="${vcs_info}[${vcs_info_msg_0_%/}]"
     fi
 
+    # Build up a pre-command prompt based on SHLVL
     local i up rp
-    for (( i = 0; i < SHLVL; i++ )) do
+    for (( i = TOPSHLVL; i <= SHLVL; i++ )) do
 	up="$up>"
 	rp="$rp#"
     done
+
     PROMPT="%h%(!. $rp.$up) "
-    RPROMPT="%(0?..%S***%s ):$RP_BEFORE%m%B$RP_AFTER%b:"
+    RPROMPT="%(0?..%S***%s ):$user%m%B$vcs_info%b:"
 }
 
 autoload -Uz vcs_info
 zstyle ':vcs_info:*' formats '%r/%b'
 zstyle ':vcs_info:*' actionformats '%r/%b'
 
+#left here for debugging
 #zstyle ':vcs_info:*' actionformats 's:%s, b:%b, a:%a, i:%i, c:%c, u:%u, R:%R, r:%r, S:%S, m:%m'
 #zstyle ':vcs_info:*'       formats 's:%s, b:%b, i:%i, c:%c, u:%u, R:%R, r:%r, S:%S, m:%m'
 #zstyle ':vcs_info:(sv[nk]|bzr):*' branchformat '%b%F{1}:%F{3}%r'
@@ -193,8 +196,6 @@ unfunction preexec 2>&/dev/null
 fi
 
 precmd_functions=(build_prompt long_cmd_notify)
-
-unset RP_BEFORE RP_AFTER
 
 chdir $PWD	# force the change_header (and make it right)
 
