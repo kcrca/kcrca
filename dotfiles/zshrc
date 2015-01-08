@@ -56,7 +56,7 @@ zstyle ':vcs_info:*' actionformats '%r/%b'
 build_prompt
 
 typeset -aU preexec_functions precmd_functions
-typset -a last_cmd
+typeset -a last_cmd
 
 # Remember the command being run. We can't use fc to figure it out later
 # because of job control -- we don't want to report "fg" as "fg" but as the
