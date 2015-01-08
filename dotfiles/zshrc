@@ -55,20 +55,13 @@ zstyle ':vcs_info:*' actionformats '%r/%b'
 
 build_prompt
 
-zstyle -d ':cmd_notify:'
-zstyle ':cmd_notify:' notify-time 15
-zstyle ':cmd_notify:' ignore-cmd man vl vi ex vim
-zstyle ':cmd_notify:' silent-frontmost Terminal
-zstyle ':cmd_notify:' frontmost-command frontmost
-
 typeset -aU preexec_functions precmd_functions
+typset -a last_cmd
 
-function notify_cmd_pre() {
-    emulate -L zsh
-    local -a cmd
-    cmd=(${(z)1})             # Re-parse the command line
-
-    # Handle job control (thanks to hardescape script)
+# Remember the command being run. We can't use fc to figure it out later
+# because of job control -- we don't want to report "fg" as "fg" but as the
+# command it ran.
+function cmd_notify_func_pre() {
     case $cmd[1] in
     fg|bg|job|%*)
 	# Look up the command that is being managed by fg, etc.
@@ -88,18 +81,18 @@ function notify_cmd_pre() {
 	jobnum=$jobline[1]		# jobnum is now (say) "[12]"
 	jobnum=${jobnum[2,-2]}		# jobnum is now (say) "12"
 	cmd_text=$jobtexts[$jobnum]
-	cmd=(${(z)cmd_text})
+	last_cmd=(${(z)cmd_text})
 	;;
     *)
+	last_cmd=(${(z)1})             # Re-parse the command line
 	;;	# do not need to look up the command
     esac
-
-    zstyle ':cmd_notify:' command "$cmd[@]"
 }
 
-# If something takes at least :cmd_notify:notify-time seconds, use growl to notify if Terminal not in foreground
-function notify_cmd() {
-    result=$?
+# If something takes at least :cmd_notify:notify-time seconds and is not in the
+# foreground shell, notify the user
+function cmd_notify_func() {
+    st=$?
 
     # I used to use the commented-out code below, but a bug in zsh broke it (see preexec)
     # working.  I leave it in because it should be faster, so if the bug gets fixed...
@@ -108,38 +101,18 @@ function notify_cmd() {
 
     zstyle -s ':cmd_notify:' notify-time notify
     if (( $tm >= $notify )); then
-	local -a cmd
-	zstyle -a ':cmd_notify:' command cmd
-	if zstyle -m ':cmd_notify:' ignore_cmd $cmd[1]:t; then
-	    :	# it doesn't matter how long these took
-	else
-	    local fmc fm
-	    zstyle -g fmc ':cmd_notify:' frontmost-command
-	    fm=`eval $fmc`
-	    if zstyle -m ':cmd_notify:' silent-frontmost $fm; then
-		: # Be silent about commands if this is frontmost
-	    else
-		local -i secs=$(($tm % 60))
-		local -i mins=$(($tm / 60))
-		local timestr
-		timestr=`printf 'Time: %d:%02d' $mins $secs`
-		echo Time: $timestr / Frontmost: $fm
-		(
-		    echo $timestr
-		    echo Status: $result
-		) | growlnotify -s -- "$cmd[@]"
-	    fi
-	fi
+	# cmd_notify checks for frontmost window, etc.
+	cmd_notify $tm $st "$cmd[@]"
     fi
 }
 
 if which growlnotify >&/dev/null ; then
-    preexec_functions+=(notify_cmd_pre)
-    precmd_functions+=(notify_cmd)
+    preexec_functions+=(cmd_notify_func_pre)
+    precmd_functions+=(cmd_notify_func)
 else
-    # this construct removes instances of (say) notify_cmd_pre from the array
-    precmd_functions=("${(@)precmd_functions:#notify_cmd_pre}")
-    preexec_functions=("${(@)preexec_functions:#notify_cmd}")
+    # this construct removes instances of (say) cmd_notify_func_pre from the array
+    precmd_functions=("${(@)precmd_functions:#cmd_notify_func_pre}")
+    preexec_functions=("${(@)preexec_functions:#cmd_notify_func}")
 fi
 
 precmd_functions+=(build_prompt)

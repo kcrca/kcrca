@@ -1,0 +1,41 @@
+#!/bin/zsh
+
+set -x
+tty=$TTY:t
+if [[ $1 == -t ]]; then
+	tty=$2
+	shift 2
+fi
+
+tm=$1 ; shift
+st=$1 ; shift
+cmd=("$@")
+
+# This means I'm running remotely, and should send it back to the home machine
+if [[ ! -z $REMOTE_HOST && ! -z $LC_TTY ]]; then
+    exec ssh $REMOTE_HOST -t $LC_TTY $tm $st "$cmd[@]" </dev/null
+fi
+
+if zstyle -m ':cmd_notify:' ignore_cmd "$cmd[1]:t"; then
+    # it doesn't matter how long these took
+    exit 0
+fi
+
+zstyle -g fmc ':cmd_notify:' frontmost-command
+eval "frontmost=(`$fmc`)"
+fmapp=$frontmost[1]
+fmwin=$frontmost[2]
+if zstyle -m ':cmd_notify:' silent-frontmost $fmapp || [[ $fmwin =~ $tty ]]; then
+    # Be silent about commands if this is frontmost
+    exit 0
+fi
+
+local -i secs=$((tm % 60))
+local -i mins=$((tm / 60))
+local timestr
+timestr=`printf 'Time: %d:%02d' $mins $secs`
+echo Time: $timestr / Frontmost: $fm
+(
+    echo $timestr
+    echo Status: $st
+) | growlnotify -s -- "$cmd[@]"

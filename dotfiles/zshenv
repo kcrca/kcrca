@@ -155,6 +155,13 @@ alias ls >/dev/null && unalias ls
 #This makes it sort '.'s first, rather put (say) ".foo" next to "faz"
 alias ls="LANG=C ls"
 
+zstyle -d ':cmd_notify:'
+zstyle ':cmd_notify:' notify-time 1
+zstyle ':cmd_notify:' ignore-cmd man vl vi ex vim
+zstyle ':cmd_notify:' frontmost-command frontmost.applescript
+#This can be used if (say) you want no notifications if you're using Photoshop
+#zstyle ':cmd_notify:' silent-frontmost Photoshop
+
 function ereg
 {
     local k
