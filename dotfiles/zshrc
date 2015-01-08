@@ -102,11 +102,12 @@ function cmd_notify_func() {
     zstyle -s ':cmd_notify:' notify-time notify
     if (( $tm >= $notify )); then
 	# cmd_notify checks for frontmost window, etc.
+	echo cmd_notify $tm $st "$cmd[@]"
 	cmd_notify $tm $st "$cmd[@]"
     fi
 }
 
-if which growlnotify >&/dev/null ; then
+if which cmd_notify >&/dev/null ; then
     preexec_functions+=(cmd_notify_func_pre)
     precmd_functions+=(cmd_notify_func)
 else
