@@ -62,17 +62,19 @@ typeset -a last_cmd
 # because of job control -- we don't want to report "fg" as "fg" but as the
 # command it ran.
 function cmd_notify_func_pre() {
-    case $cmd[1] in
+    last_cmd=(${(z)1})             # Re-parse the command line
+
+    case $last_cmd[1] in
     fg|bg|job|%*)
 	# Look up the command that is being managed by fg, etc.
-	if [[ $cmd[1] == 'fg' ]]; then
-	    if (( $#cmd == 1 )); then
+	if [[ $last_cmd[1] == 'fg' ]]; then
+	    if (( $#last_cmd == 1 )); then
 		jobspec="%+"
 	    else
-		jobspec=$cmd[2]
+		jobspec=$last_cmd[2]
 	    fi
 	else
-	    jobspec=$cmd[2]
+	    jobspec=$last_cmd[2]
 	fi
 
 	# use jobs to translate jobspec (e.g. "%+") into a number
@@ -84,7 +86,6 @@ function cmd_notify_func_pre() {
 	last_cmd=(${(z)cmd_text})
 	;;
     *)
-	last_cmd=(${(z)1})             # Re-parse the command line
 	;;	# do not need to look up the command
     esac
 }
@@ -102,8 +103,8 @@ function cmd_notify_func() {
     zstyle -s ':cmd_notify:' notify-time notify
     if (( $tm >= $notify )); then
 	# cmd_notify checks for frontmost window, etc.
-	echo cmd_notify $tm $st "$cmd[@]"
-	cmd_notify $tm $st "$cmd[@]"
+	echo cmd_notify $tm $st "$last_cmd[@]"
+	cmd_notify $tm $st "$last_cmd[@]"
     fi
 }
 
