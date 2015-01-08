@@ -61,21 +61,9 @@ zstyle ':cmd_notify:' ignore-cmd man vl vi ex vim
 zstyle ':cmd_notify:' silent-frontmost Terminal
 zstyle ':cmd_notify:' frontmost-command frontmost
 
-#if which growlnotify >&/dev/null ; then
-if false ; then
-    # This code used to work for me on the mac to pop up notification (via
-    # growl) when a command that had been runnning in the shell finishes *IF*
-    # it took more than a certain time. This let me run things in a shell and
-    # go do something else until it finished. This broke with some release,
-    # and I if'ed this out until I could fix it. The idea is that preexec
-    # remembers the command being run and the start time, and long_cmd_notify
-    # (also run before the prompt and before preexec) would do a notification
-    # if the time was too long. I started to generalize it so it could be
-    # loaded like any other zsh function, and configured to use other tools
-    # to notify.
-    #
-    # Broken, needs fixing someday.
-function preexec() {
+typeset -aU preexec_functions precmd_functions
+
+function notify_cmd_pre() {
     emulate -L zsh
     local -a cmd
     cmd=(${(z)1})             # Re-parse the command line
@@ -84,7 +72,6 @@ function preexec() {
     case $cmd[1] in
     fg|bg|job|%*)
 	# Look up the command that is being managed by fg, etc.
-	local jobspec
 	if [[ $cmd[1] == 'fg' ]]; then
 	    if (( $#cmd == 1 )); then
 		jobspec="%+"
@@ -92,43 +79,15 @@ function preexec() {
 		jobspec=$cmd[2]
 	    fi
 	else
-	    jobspec=$cmd[1]
+	    jobspec=$cmd[2]
 	fi
 
-	#
-	# I tried just using 'jobs -l' to translate the spec into a command, but
-	# I couldn't capture the output.  That is,
-	#     jobs -l %1 | cat
-	# would result in the error "jobs: %1: no such job".  So I'm parsing things
-	# myself.  This seems like a bug, since "jobs | cat" works just fine.
-	#
-
-	local cmd_text
-
-	jobspec=${jobspec/\%/}
-	case $jobspec in
-	[0-9]*)
-	    cmd_text=$jobtexts[$jobspec]
-	    ;;
-	[-+])
-	    local -i i
-	    i=0
-	    for cmd_text in $jobstates; do
-		i=$(( $i + 1 ))
-		if [[ $cmd_text != ${cmd_text/:$jobspec:/} ]]; then
-		    cmd_text=$jobtexts[$i]
-		    break
-		fi
-	    done
-	    ;;
-	*)
-	    for cmd_text in $jobtexts; do
-		if [[ $cmd_text != ${cmd_text%$jobspec} ]]; then
-		    break
-		fi
-	    done
-	    ;;
-	esac
+	# use jobs to translate jobspec (e.g. "%+") into a number
+	local jobline jobnum cmd_text
+	jobline=(`jobs $jobspec`)
+	jobnum=$jobline[1]		# jobnum is now (say) "[12]"
+	jobnum=${jobnum[2,-2]}		# jobnum is now (say) "12"
+	cmd_text=$jobtexts[$jobnum]
 	cmd=(${(z)cmd_text})
 	;;
     *)
@@ -136,31 +95,16 @@ function preexec() {
     esac
 
     zstyle ':cmd_notify:' command "$cmd[@]"
-
-    # ARGH!!!  There is a zsh bug: If there is a preexec function, the elapsed
-    # times for the history are wrong.  So I have to do elapsed time by myself.  Feh.
-    # http://www.zsh.org/mla/workers/2007/msg01246.html
-
-    zstyle ':cmd_notify:' start-time `date +%s`
 }
 
 # If something takes at least :cmd_notify:notify-time seconds, use growl to notify if Terminal not in foreground
-function long_cmd_notify() {
+function notify_cmd() {
     result=$?
-    if zstyle -T ':cmd_notify:' start-time; then
-    	return 0
-    fi
 
     # I used to use the commented-out code below, but a bug in zsh broke it (see preexec)
     # working.  I leave it in because it should be faster, so if the bug gets fixed...
-    # hist=(`fc -l -D -n -1 -1`)
-    # tm=$hist[1]:s/://
-
-    local -i stop start tm notify
-    local cmd
-    stop=`date +%s`
-    zstyle -s ':cmd_notify:' start-time start
-    tm=$(($stop - $start))
+    hist=(`fc -l -D -n -1 -1`)
+    tm=$hist[1]:s/://
 
     zstyle -s ':cmd_notify:' notify-time notify
     if (( $tm >= $notify )); then
@@ -187,15 +131,18 @@ function long_cmd_notify() {
 	    fi
 	fi
     fi
-    # reset the timing
-    zstyle -d ':cmd_notify:' start-time
 }
+
+if which growlnotify >&/dev/null ; then
+    preexec_functions+=(notify_cmd_pre)
+    precmd_functions+=(notify_cmd)
 else
-unfunction long_cmd_notify 2>&/dev/null
-unfunction preexec 2>&/dev/null
+    # this construct removes instances of (say) notify_cmd_pre from the array
+    precmd_functions=("${(@)precmd_functions:#notify_cmd_pre}")
+    preexec_functions=("${(@)preexec_functions:#notify_cmd}")
 fi
 
-precmd_functions=(build_prompt long_cmd_notify)
+precmd_functions+=(build_prompt)
 
 chdir $PWD	# force the change_header (and make it right)
 
