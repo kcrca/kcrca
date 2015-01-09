@@ -33,7 +33,6 @@ local -i secs=$((tm % 60))
 local -i mins=$((tm / 60))
 local timestr
 timestr=`printf 'Time: %d:%02d' $mins $secs`
-echo Time: $timestr / Frontmost: $fm
 (
     echo $timestr
     echo Status: $st
