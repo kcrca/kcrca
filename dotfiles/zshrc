@@ -62,7 +62,8 @@ typeset -a last_cmd
 # because of job control -- we don't want to report "fg" as "fg" but as the
 # command it ran.
 function cmd_notify_func_pre() {
-    last_cmd=(${(z)1})             # Re-parse the command line
+    last_cmd=("${(z@)1}")             # Re-parse the command line
+    cmd_notify_checked=0
 
     case $last_cmd[1] in
     fg|bg|job|%*)
@@ -83,7 +84,7 @@ function cmd_notify_func_pre() {
 	jobnum=$jobline[1]		# jobnum is now (say) "[12]"
 	jobnum=${jobnum[2,-2]}		# jobnum is now (say) "12"
 	cmd_text=$jobtexts[$jobnum]
-	last_cmd=(${(z)cmd_text})
+	last_cmd=("${(z@)cmd_text}")
 	;;
     *)
 	;;	# do not need to look up the command
@@ -94,6 +95,7 @@ function cmd_notify_func_pre() {
 # foreground shell, notify the user
 function cmd_notify_func() {
     st=$?
+    (( cmd_notify_checked )) && return
 
     # I used to use the commented-out code below, but a bug in zsh broke it (see preexec)
     # working.  I leave it in because it should be faster, so if the bug gets fixed...
@@ -105,6 +107,7 @@ function cmd_notify_func() {
 	# cmd_notify checks for frontmost window, etc.
 	cmd_notify $tm $st "$last_cmd[@]" &!
     fi
+    cmd_notify_checked=1
 }
 
 if which cmd_notify >&/dev/null ; then
