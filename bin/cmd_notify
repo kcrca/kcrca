@@ -9,6 +9,9 @@ fi
 tm=$1 ; shift
 st=$1 ; shift
 cmd=("$@")
+if [[ $cmd == "-" ]]; then
+    read -A cmd
+fi
 
 if zstyle -m ':cmd_notify:' ignore_cmd "$cmd[1]:t"; then
     # it doesn't matter how long these took
@@ -17,7 +20,7 @@ fi
 
 # This means I'm running remotely, and should send it back to the home machine
 if [[ ! -z $REMOTE_HOST && ! -z $LC_TTY ]]; then
-    exec ssh $REMOTE_HOST cmd_notify -t $LC_TTY:t $tm $st "$cmd[@]" </dev/null
+    echo "$cmd[@]" | exec ssh $REMOTE_HOST cmd_notify -t $LC_TTY:t $tm $st -
 fi
 
 zstyle -g fmc ':cmd_notify:' frontmost-command
