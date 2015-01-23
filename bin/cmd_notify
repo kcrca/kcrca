@@ -13,7 +13,7 @@ if [[ $cmd == "-" ]]; then
     read -A cmd
 fi
 
-if zstyle -m ':cmd_notify:' ignore_cmd "$cmd[1]:t"; then
+if zstyle -m ':cmd_notify:' ignore-cmd "$cmd[1]:t"; then
     # it doesn't matter how long these took
     exit 0
 fi

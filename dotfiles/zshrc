@@ -80,11 +80,13 @@ function cmd_notify_func_pre() {
 
 	# use jobs to translate jobspec (e.g. "%+") into a number
 	local jobline jobnum cmd_text
-	jobline=(`jobs $jobspec`)
-	jobnum=$jobline[1]		# jobnum is now (say) "[12]"
-	jobnum=${jobnum[2,-2]}		# jobnum is now (say) "12"
-	cmd_text=$jobtexts[$jobnum]
-	last_cmd=("${(z@)cmd_text}")
+	jobline=(`jobs $jobspec 2>& /dev/null`)
+	if [[ ! -z $jobline ]]; then
+	    jobnum=$jobline[1]		# jobnum is now (say) "[12]"
+	    jobnum=${jobnum[2,-2]}		# jobnum is now (say) "12"
+	    cmd_text=$jobtexts[$jobnum]
+	    last_cmd=("${(z@)cmd_text}")
+	fi
 	;;
     *)
 	;;	# do not need to look up the command
