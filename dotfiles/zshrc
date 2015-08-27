@@ -300,4 +300,6 @@ func zshhist_store() {
 
 export LC_TTY=${LC_TTY:-`tty`}
 
+[[ -z "$XAUTHORITY" && -f ~/.Xauthority ]] && export XAUTHORITY=~/.Xauthority
+
 domain_source zshrc

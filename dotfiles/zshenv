@@ -336,4 +336,7 @@ export VIRTUAL_ENV_DISABLE_PROMPT=yes
 export ANT_HOME=/usr/local/ant
 export JINI_HOME=/usr/local/jini
 
+# Used for Android Studio With Blaze (aswb)
+export STUDIO_VM_OPTIONS=~/studio64.vmoptions
+
 test -z "$DISPLAY" && export DISPLAY=:0.0

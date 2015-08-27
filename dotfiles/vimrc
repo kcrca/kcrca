@@ -1,3 +1,15 @@
+" from go/vim instructions, verbatim (also, Week 1, 'Ramp up your vim skills')
+set nocompatible
+source /usr/share/vim/google/google.vim
+filetype plugin indent on
+
+" Week 2, Format BUILD files (auto format on save)
+Glug codefmt
+Glug codefmt-google
+autocmd FileType blazebuild AutoFormatBuffer
+
+" ----------------------
+
 set fileformats=unix,mac,dos
 augroup filetypedetect
 au BufNewFile,BufRead *.lsl setf lsl
@@ -30,4 +42,4 @@ autocmd BufReadPost *
     \ endif
 " Remember info about open buffers on close
 set viminfo^=%
-
+syntax on
