@@ -280,18 +280,18 @@ pdr() {
 }
 
 func zshhist_path() {
+	[[ $LC_TTY == "" ]] && return
 	local f
-	if [[ $LC_TTY == "" ]]; then return; fi
 	f=~/.zsh_hist/${LC_TTY:gs,/,_}
 	f=${f:s,/_,/}
 	echo $f
 }
 
 func zshhist_store() {
+	[[ ! -d ~/.zsh_hist ]] && return
 	local f
 	f=`zshhist_path`
-	if [[ $f == "" ]]; then return; fi
-	if [[ ! -d ~/.zsh_hist ]]; then return; fi
+	[[ $f == "" ]] && return
 	(
 	    [[ $d != "" ]] && echo g4dir $t/$d >> $f
 	    echo cd $PWD

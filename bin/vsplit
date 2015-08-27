@@ -1,0 +1,31 @@
+#!/bin/zsh
+
+typeset -A pats
+while [[ $# > 0 && $1 != '--' ]]; do
+    if [[ $1 =~ '([^=]*)=(.*)' ]]; then
+	if [[ -z "$pats[$match[1]]" ]]; then
+	    pats[$match[1]]=${match[2]}
+	else
+	    pats[$match[1]]+=" "${match[2]}
+	fi
+    else
+	pats[$1]='* .*'
+    fi
+    shift
+done
+
+if [[ $1 == '--' ]]; then
+    shift
+fi
+
+echo typeset -a ${(k)pats} \;
+for v in ${(k)pats}; do
+    echo $v='();'
+    pat="$pats[$v]"
+    for p in "${(@)=pat}"; do
+	matches=(`eval echo '${(M)argv:#'$p'}'`)
+	if (( $#matches )); then
+	    echo $v+='(' $matches ');'
+	fi
+    done
+done
