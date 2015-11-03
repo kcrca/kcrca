@@ -6,6 +6,9 @@ HISTSIZE=300
 SAVEHIST=300
 HISTCHARS=!,#
 HISTFILE=~/.zsh_history
+HIST_EXPIRE_DUPS_FIRST=1
+setopt SHARE_HISTORY		# multiple shells have a single history (after 'hist')
+setopt HIST_ALLOW_CLOBBER	# in history, ">" becomes ">!"
 
 FIGNORE='~:.bak:.o:CVS'		# Ignore during file completion
 
@@ -99,8 +102,6 @@ function cmd_notify_func() {
     st=$?
     (( cmd_notify_checked )) && return
 
-    # I used to use the commented-out code below, but a bug in zsh broke it (see preexec)
-    # working.  I leave it in because it should be faster, so if the bug gets fixed...
     hist=(`fc -l -D -n -1 -1`)
     tm=$hist[1]:s/://
 

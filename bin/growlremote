@@ -1,0 +1,36 @@
+#!/bin/zsh
+to_dos=(perl -pe "'s/\n/\r\n/'")
+set -x
+
+fail() {
+    echo "$@" 1>& 2
+    exit 1
+}
+
+app=growlremote
+
+if [[ $1 == -r ]]; then
+    # Only really need to do this once, but what if this is the once? We send it anyway
+    eval $to_dos << EOF | nc $REMOTE_HOST 23053 | grep ^Error-Code && fail Could not register $app
+GNTP/1.0 REGISTER NONE
+Application-Name: $app
+Notifications-Count: 1
+
+Notification-Name: notify
+Notification-Enabled: True
+
+EOF
+    shift
+fi
+
+msg=$(cat)
+title=($@)
+
+eval $to_dos << EOF | nc -q 0 $REMOTE_HOST 23053 | grep ^Error-Code && fail  Failed -- rerun with -r
+GNTP/1.0 NOTIFY NONE
+Application-Name: $app
+Notification-Name: notify
+Notification-Count: 10
+Notification-Text: $msg
+
+EOF

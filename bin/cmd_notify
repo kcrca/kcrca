@@ -20,7 +20,13 @@ fi
 
 # This means I'm running remotely, and should send it back to the home machine
 if [[ ! -z $REMOTE_HOST && ! -z $LC_TTY ]]; then
-    echo "$cmd[@]" | exec ssh $REMOTE_HOST cmd_notify -t $LC_TTY:t $tm $st -
+    # This used to send back a remote notification, but with gnubby_ssh, that
+    # means that I'm always tapping the gnubby, and other related annoyances.
+    # So I've disabled this for now, but there probably is a way to send this
+    # back across the ssh channel under its authorization, which would eliminate
+    # repeated validation. Someday...
+    #echo "$cmd[@]" | exec ssh $REMOTE_HOST cmd_notify -t $LC_TTY:t $tm $st -
+    exit 0
 fi
 
 zstyle -g fmc ':cmd_notify:' frontmost-command
