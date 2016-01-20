@@ -1,5 +1,37 @@
 #!/bin/zsh
 
+# This script notifies the user of something, typically the completion
+# of a command.  It is used as part of a cmd_notify module for zsh that
+# pops up notifications when commands take more than a minumum time in a
+# foreground window. See the module doc.
+#
+# 	cmd_notify [-t tty] time-elapsed cmd ...
+#
+# This script relies on details about the tty naming in order to know if the
+# user is currently in the window in which the command was run. This relies
+# on a shell command that is stored in :cmd_notify:frontmost-command. This
+# command prints out the frontmost command and title bar (window name)
+# information. If the tty in which the command was run (directly or indirectly
+# via ssh) is the same as the frontmost tty, the user is presumed to be
+# watching what is going on, so no notification is shown. (If only we could
+# see where their eyes were focused!)
+#
+# This requires the terminal emulator to put the name of the tty into the
+# title bar.
+#
+# For ssh, the remote tty (in which ssh was run) needs to be available to
+# make this work.  To do this, create $LC_TTY in your shell, such as by:
+#
+#	export LC_TTY=${LC_TTY:-`tty`}
+#
+# Then in ~/.ssh/config, send those environment variables:
+#
+#	SendEnv LC_TTY
+#
+# When this script is run on an ssh-ed environment ($REMOTE_HOST and
+# $LC_TTY are both set), it runs ssh $REMOTE_HOST cmd_notify -t $LC_TTY
+# with appropriate arguments.
+
 tty=$TTY:t
 if [[ $1 == -t ]]; then
 	tty=$2
@@ -25,11 +57,16 @@ if [[ ! -z $REMOTE_HOST && ! -z $LC_TTY ]]; then
     # So I've disabled this for now, but there probably is a way to send this
     # back across the ssh channel under its authorization, which would eliminate
     # repeated validation. Someday...
-    #echo "$cmd[@]" | exec ssh $REMOTE_HOST cmd_notify -t $LC_TTY:t $tm $st -
+    #echo "$cmd[@]" | exec ssh -f $REMOTE_HOST cmd_notify -t $LC_TTY:t $tm $st -
     exit 0
 fi
 
+# Check to see if we should notify based on the frontmost app. This relies on
+# the frontmost-command, which on a Mac is an applescript. It also relies on:
+#     (*) The temrinal emulator having the tty name in the title bar.
+#     (*) The tty name being available in $tty (see above)
 zstyle -g fmc ':cmd_notify:' frontmost-command
+# This eval allows quoted strings to create individual array entries
 eval "frontmost=(`$fmc`)"
 fmapp=$frontmost[1]
 fmwin=$frontmost[2]
@@ -45,4 +82,4 @@ timestr=`printf 'Time: %d:%02d' $mins $secs`
 (
     echo $timestr
     echo Status: $st
-) | growlnotify -s -- "$cmd[@]"
+) | growlnotify -n cmd_notify -s -- "$cmd[@]"

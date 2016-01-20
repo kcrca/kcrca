@@ -37,13 +37,10 @@ build_prompt() {
     fi
 
     # Build up a pre-command prompt based on SHLVL
-    local i up rp
-    for (( i = TOPSHLVL; i <= SHLVL; i++ )) do
-	up="$up>"
-	rp="$rp#"
-    done
-
-    PROMPT="%h%(!. $rp.$up) "
+    local lcnt=$((TOPSHLVL - SHLVL))
+    PROMPT="%h%(!. #.>) "
+    PROMPT=${PROMPT:F:$lcnt:s,>,>>}
+    PROMPT=${PROMPT:F:$lcnt:s,#,##}
     RPROMPT="%(0?..%S***%s ):$user%m%B$vcs_info%b:"
 }
 
