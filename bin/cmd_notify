@@ -66,7 +66,8 @@ fi
 #     (*) The temrinal emulator having the tty name in the title bar.
 #     (*) The tty name being available in $tty (see above)
 zstyle -g fmc ':cmd_notify:' frontmost-command
-frontmost=(`eval $fmc`)
+# This eval allows quoted strings to create individual array entries
+eval "frontmost=(`$fmc`)"
 fmapp=$frontmost[1]
 fmwin=$frontmost[2]
 if zstyle -m ':cmd_notify:' silent-frontmost "$fmapp" || [[ $fmwin =~ "$tty" ]]; then
@@ -81,4 +82,4 @@ timestr=`printf 'Time: %d:%02d' $mins $secs`
 (
     echo $timestr
     echo Status: $st
-) | growlnotify -s -- "$cmd[@]"
+) | growlnotify -n cmd_notify -s -- "$cmd[@]"

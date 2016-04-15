@@ -7,11 +7,14 @@ fail() {
     exit 1
 }
 
+host=${REMOTE_HOST:-localhost}
+
 app=growlremote
 
 if [[ $1 == -r ]]; then
-    # Only really need to do this once, but what if this is the once? We send it anyway
-    eval $to_dos << EOF | nc $REMOTE_HOST 23053 | grep ^Error-Code && fail Could not register $app
+    # TODO: Only really need to do this once, so we should capture the "unregistered" error code
+    # on the normal send, do this, and then resend.
+    eval $to_dos << EOF | nc $host 23053 | grep ^Error-Code && fail Could not register $app
 GNTP/1.0 REGISTER NONE
 Application-Name: $app
 Notifications-Count: 1
@@ -26,7 +29,7 @@ fi
 msg=$(cat)
 title=($@)
 
-eval $to_dos << EOF | nc -q 0 $REMOTE_HOST 23053 | grep ^Error-Code && fail  Failed -- rerun with -r
+eval $to_dos << EOF | nc $host 23053 | grep ^Error-Code && fail  Failed -- rerun with -r
 GNTP/1.0 NOTIFY NONE
 Application-Name: $app
 Notification-Name: notify

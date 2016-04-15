@@ -1,11 +1,15 @@
 " from go/vim instructions, verbatim (also, Week 1, 'Ramp up your vim skills')
 set nocompatible
-source /usr/share/vim/google/google.vim
+if filereadable("/usr/share/vim/google/google.vim")
+    source /usr/share/vim/google/google.vim
+endif
 filetype plugin indent on
 
 " Week 2, Format BUILD files (auto format on save)
-Glug codefmt
-Glug codefmt-google
+if exists("Glug")
+    Glug codefmt
+    Glug codefmt-google
+endif
 autocmd FileType blazebuild AutoFormatBuffer
 
 " ----------------------
