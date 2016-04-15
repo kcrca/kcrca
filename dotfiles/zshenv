@@ -165,10 +165,10 @@ zstyle ':cmd_notify:' frontmost-command frontmost.applescript
 
 function ereg
 {
-    local k
-    k=k
-    [[ -f .k ]] && k=.k
-    egrep '\.[a-z][a-z0-9]*:[0-9]+:' $k
+    local kfile
+    kfile=k
+    [[ -f .k ]] && kfile=.k
+    egrep '\.[a-z][a-z0-9]*:[0-9]+:' $kfile | egrep -v '\bnote:'
 }
 
 function er
@@ -176,7 +176,7 @@ function er
     if [[ x$1 = x-c ]]; then
 	shift
 	local f
-	for f in `ereg $k| error -n |& sed -n -e '/^File "/{' -e 's/File "//' -e 's/".*//p' -e '}' ` ; do
+	for f in `ereg $k | error -n |& sed -n -e '/^File "/{' -e 's/File "//' -e 's/".*//p' -e '}' ` ; do
 	    test -w $f || cco -nc $f
 	done
     fi
@@ -235,8 +235,9 @@ function setl
     if [[ $#l = 0 ]]; then
 	return 1
     else
-	# I don't know why I have to do the thing with COLUMNS here but I do
-	# otherwise it uses the default of 80
+	# If a nice-looking ls is less than 20 lines, use it, otherwise use a, b, c...
+	# (I don't know why I have to do the thing with COLUMNS here but I do
+	# otherwise it uses the default of 80)
 	local cnt=`COLUMNS=$COLUMNS ls -Cq "$l[@]" | wc -l`
 	if (( cnt > 20 )); then
 	    ls -m "$l[@]"

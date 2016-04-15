@@ -7,7 +7,6 @@ SAVEHIST=300
 HISTCHARS=!,#
 HISTFILE=~/.zsh_history
 HIST_EXPIRE_DUPS_FIRST=1
-setopt SHARE_HISTORY		# multiple shells have a single history (after 'hist')
 setopt HIST_ALLOW_CLOBBER	# in history, ">" becomes ">!"
 
 FIGNORE='~:.bak:.o:CVS'		# Ignore during file completion
@@ -280,23 +279,35 @@ pdr() {
         fi
 }
 
+# Restore previous dir and g4 status when logging in again.
+# The directory ~/.zsh_hist must exist or nothing will be done
 func zshhist_path() {
-	[[ $LC_TTY == "" ]] && return
 	local f
+	if [[ $LC_TTY == "" ]]; then return; fi
 	f=~/.zsh_hist/${LC_TTY:gs,/,_}
 	f=${f:s,/_,/}
 	echo $f
 }
 
 func zshhist_store() {
-	[[ ! -d ~/.zsh_hist ]] && return
 	local f
 	f=`zshhist_path`
-	[[ $f == "" ]] && return
+	if [[ $f == "" ]]; then return; fi
+	if [[ ! -d ~/.zsh_hist ]]; then return; fi
 	(
-	    [[ $d != "" ]] && echo g4dir $t/$d >> $f
+	    [[ $d != "" ]] && echo g4dir $t/$d
+	    echo echo cd $PWD
 	    echo cd $PWD
 	) >! $f
+}
+precmd_functions+=(zshhist_store)
+
+func zshhist_restore() {
+	local f
+	f=`zshhist_path`
+	if [[ $f == "" ]]; then return; fi
+	[[ -f $f ]] && . $f
+	HISTFILE=$f.hist
 }
 
 export LC_TTY=${LC_TTY:-`tty`}
