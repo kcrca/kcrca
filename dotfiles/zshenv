@@ -158,8 +158,9 @@ alias ls="LANG=C ls"
 
 zstyle -d ':cmd_notify:'
 zstyle ':cmd_notify:' notify-time 15
-zstyle ':cmd_notify:' ignore-cmd man vl vi ex vim ssh
+zstyle ':cmd_notify:' ignore-cmd man vl vi ex vim ssh shamus
 zstyle ':cmd_notify:' frontmost-command frontmost.applescript
+zstyle ':cmd_notify:' remote-port 10023
 #This can be used if (say) you want no notifications if you're using Photoshop
 #zstyle ':cmd_notify:' silent-frontmost Photoshop
 
@@ -237,7 +238,8 @@ function setl
     else
 	# I don't know why I have to do the thing with COLUMNS here but I do
 	# otherwise it uses the default of 80
-	local cnt=`COLUMNS=$COLUMNS ls -Cq "$l[@]" | wc -l`
+	local cnt
+	cnt=`COLUMNS=$COLUMNS ls -Cq "$l[@]" | wc -l`
 	if (( cnt > 20 )); then
 	    ls -m "$l[@]"
 	else
