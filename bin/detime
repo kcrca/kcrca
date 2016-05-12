@@ -3,16 +3,18 @@
 detime()
 {
     # Note, leap seconds generate a second "60"
-    sed \
-        -e 's/[0-2][0-9]:[0-5][0-9]:[0-6][0-9]*[.][0-9]*   [0-9]* */--TIME-- /' \
-	"$file"
+    sed -E \
+        -e 's/[0-2][0-9]:[0-5][0-9]:[0-6][0-9]+([.][0-9]+)   [0-9]* */--TIME-- /' \
+        -e 's/[0-9]+ ms\b/--MS-- ms/g' \
+        "$file"
 }
 
 set -x
 overwrite=0
-while getopts o f; do
-    case $f in
-	o) overwrite=1;;
+while getopts o o; do
+    case $o in
+        o) overwrite=1 ;;
+        \?) echo "Invalid option: -$OPTARG" >&2 ;;
     esac
 done
 shift `expr $OPTIND - 1`
@@ -20,11 +22,13 @@ shift `expr $OPTIND - 1`
 if [ $overwrite -eq 1 ]; then
     tmp=/tmp/detime.$$
     for file in "$@"; do
-	rm -f $tmp
-	detime $1 > $tmp || break
-	mv $tmp $file || break
+        rm -f $tmp
+        detime $1 > $tmp || break
+        mv $tmp $file || break
     done
     rm -rf $tmp
 else
-    exec detime "$@"
+    for file in "$@"; do
+        detime "$@"
+    done
 fi

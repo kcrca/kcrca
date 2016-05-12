@@ -139,7 +139,7 @@ zstyle ':completion:*' completer _complete _ignored
 zstyle :compinstall filename ~/.zshrc
 
 autoload -Uz compinit
-compinit
+compinit -u
 which bashcompinit >/dev/null && bashcompinit
 # End of lines added by compinstall
 
@@ -293,8 +293,15 @@ func zshhist_store() {
 	if [[ ! -d ~/.zsh_hist ]]; then return; fi
 	(
 	    [[ $d != "" ]] && echo g4dir $t/$d
-	    echo echo cd $PWD
-	    echo cd $PWD
+	    local -a dirs
+	    dirs=(`dirs`)
+	    local dircmd=cd
+	    for (( i = $#dirs; i > 0; i-- )) do
+		local dir=$dirs[$i]
+		echo $dircmd "$dir"
+		dircmd=pushd
+	    done
+	    echo echo dirs: \`dirs\`
 	) >! $f
 }
 precmd_functions+=(zshhist_store)

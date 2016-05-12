@@ -58,6 +58,9 @@ if [[ ! -z $REMOTE_HOST && ! -z $LC_TTY ]]; then
     # back across the ssh channel under its authorization, which would eliminate
     # repeated validation. Someday...
     #echo "$cmd[@]" | exec ssh -f $REMOTE_HOST cmd_notify -t $LC_TTY:t $tm $st -
+    zstyle ':cmd_notify:' remote-port port
+    port=${port:-10023}
+    echo $LC_TTY $tm $st "$@" | nc localhost $port
     exit 0
 fi
 

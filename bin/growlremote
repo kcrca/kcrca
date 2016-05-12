@@ -1,39 +1,68 @@
 #!/bin/zsh
 to_dos=(perl -pe "'s/\n/\r\n/'")
-set -x
 
 fail() {
-    echo "$@" 1>& 2
+    echo "$@" 1>&2
     exit 1
 }
 
+app=`basename $0`
 host=${REMOTE_HOST:-localhost}
+port=23053
+notifier=cmd_notify
+while getopts ":a:h:p:m:" opt; do
+    case $opt in
+	a) app=$OPTARG;;
+	h) host=$OPTARG;;
+	p) port=$OPTARG;;
+	n) notifier=$OPTARG;;
+	m) msg=$OPTARG; seen_msg=1;;
+	\?) fail Unknown option: $opt;;
+    esac
+done
+shift $((OPTIND-1))
+title=("$@")
 
-app=growlremote
+if (( !seen_msg )); then
+    msg=$(cat)
+fi
 
-if [[ $1 == -r ]]; then
-    # TODO: Only really need to do this once, so we should capture the "unregistered" error code
-    # on the normal send, do this, and then resend.
-    eval $to_dos << EOF | nc $host 23053 | grep ^Error-Code && fail Could not register $app
+
+reg_packet=$(eval $to_dos <<EOF
 GNTP/1.0 REGISTER NONE
 Application-Name: $app
 Notifications-Count: 1
 
-Notification-Name: notify
+Notification-Name: $notifier
 Notification-Enabled: True
 
-EOF
-    shift
-fi
-
-msg=$(cat)
-title=($@)
-
-eval $to_dos << EOF | nc $host 23053 | grep ^Error-Code && fail  Failed -- rerun with -r
+EOF)
+msg_packet=$(eval $to_dos <<EOF
 GNTP/1.0 NOTIFY NONE
 Application-Name: $app
-Notification-Name: notify
+Notification-Name: $notifier
 Notification-Count: 10
 Notification-Text: $msg
 
-EOF
+EOF)
+
+send_message() {
+    local cont=0
+    [[ $1 == -c ]] && cont=1 && shift
+    result=$(echo $1 | nc $host $port)
+    if (( $? )); then
+	fail ${result:-nc failed}
+    fi
+    err=`echo $result | grep ^Error-Description\:`
+    if (( $#err )); then
+	if [[ $cont -gt 0 && $result =~ '.*register.*' ]]; then
+	    return 1;
+	else
+	    fail $err
+	fi
+    fi
+    return 0
+}
+
+set -x
+send_message -c $msg_packet || (echo Registering && send_message $reg_packet && send_message $msg_packet)
