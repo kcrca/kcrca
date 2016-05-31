@@ -26,21 +26,41 @@ fi
 #
 
 top=${1:-$PWD}
-modified=()
+typeset -U -a modified
+
+# find older-style swp files that are co-located with files
 for dir in $swps; do
     if (( verbose )); then
 	echo Checking $dir
     fi
     modified+=($(cd $dir && vi -r |& awk '
-	    BEGIN { pwd = "'$top'/" }
-	    /file name: (.*)/ { file = $3; sub("\\s*$", "", file) }
-	    /modified: YES/ { if (length(file) > 1) { print(file) } }
-	    /In directory/ { exit }'))
+	    BEGIN { in_current = 0 }
+	    /In current directorY:/ { in_current = 1 }
+	    in_current && /file name: (.*)/ { file = $3; sub("\\s*$", "", file) }
+	    in_current && /modified: YES/ { if (length(file) > 1) { printf("%s ", file) } }
+	    /In directory/ { in_current = 0 }
+	'))
+done
+# Newer-style swaps are in a single place based on the path
+rdirs=()
+for f in $swps; do
+    rdirs+=(`realpath $f`)
+done
+epat="$rdirs"
+epat="${epat:gs,.,\\.}"
+epat="^(${epat:gs, ,|})"
+files=($(vi -r |& awk '
+            /file name: / { file=$3; sub("\\s*$", "", file) }
+	    /modified: YES/ { print(file) }
+	'))
+files=(${~files})
+for d in $rdirs; do
+    modified+=(${(M)files:#$d/*})
 done
 
 if (( $#modified > 0 )); then
     echo '***' Unwritten files:
-    eval ls $modified
+    eval print -c $modified
     #echo $modified | tr ' ' '\n' | sed -e 's/^/  /'
 fi
 exit $#modified
