@@ -122,7 +122,7 @@ precmd_functions+=(build_prompt)
 
 chdir $PWD	# force the change_header (and make it right)
 
-stty intr '^C' erase '^H' kill '^U' quit '^\\' eof '^D' susp '^Z' lnext '^V' stop '^S' start '^Q'
+stty intr '^C' erase '^?' kill '^U' quit '^\\' eof '^D' susp '^Z' lnext '^V' stop '^S' start '^Q'
 stty -a | grep -q dsusp && stty dsusp '^Y'
 
 # virtualenv for python development

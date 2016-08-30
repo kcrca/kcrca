@@ -35,7 +35,7 @@ for dir in $swps; do
     fi
     modified+=($(cd $dir && vi -r |& awk '
 	    BEGIN { in_current = 0 }
-	    /In current directorY:/ { in_current = 1 }
+	    /In current directory:/ { in_current = 1 }
 	    in_current && /file name: (.*)/ { file = $3; sub("\\s*$", "", file) }
 	    in_current && /modified: YES/ { if (length(file) > 1) { printf("%s ", file) } }
 	    /In directory/ { in_current = 0 }
