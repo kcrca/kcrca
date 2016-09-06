@@ -159,7 +159,7 @@ alias pm="open -a /Applications/Pixelmator.app"
 
 zstyle -d ':cmd_notify:'
 zstyle ':cmd_notify:' notify-time 15
-zstyle ':cmd_notify:' ignore-cmd man vl vi ex vim ssh dev
+zstyle ':cmd_notify:' ignore-cmd man vl vi ex vim ssh dev er
 zstyle ':cmd_notify:' frontmost-command frontmost.applescript
 zstyle ':cmd_notify:' remote-port 10023
 #This can be used if (say) you want no notifications if you're using Photoshop
