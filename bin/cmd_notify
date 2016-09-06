@@ -32,11 +32,14 @@
 # $LC_TTY are both set), it runs ssh $REMOTE_HOST cmd_notify -t $LC_TTY
 # with appropriate arguments.
 
-tty=$TTY:t
+tty="$TTY"
 if [[ $1 == -t ]]; then
 	tty=$2
 	shift 2
 fi
+tty=$tty:t
+
+#DEBUG echo `hostname` "$0" "$@" '\r\n'
 
 tm=$1 ; shift
 st=$1 ; shift
@@ -60,6 +63,7 @@ if [[ ! -z $REMOTE_HOST && ! -z $LC_TTY ]]; then
     #echo "$cmd[@]" | exec ssh -f $REMOTE_HOST cmd_notify -t $LC_TTY:t $tm $st -
     zstyle ':cmd_notify:' remote-port port
     port=${port:-10023}
+    echo echo $LC_TTY $tm $st "$@" \| nc localhost $port '\r\n'
     echo $LC_TTY $tm $st "$@" | nc localhost $port
     exit 0
 fi
