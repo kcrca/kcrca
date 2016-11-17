@@ -319,3 +319,7 @@ export LC_TTY=${LC_TTY:-`tty`}
 [[ -z "$XAUTHORITY" && -f ~/.Xauthority ]] && export XAUTHORITY=~/.Xauthority
 
 domain_source zshrc
+
+. $HOME/.bagpipe/setup.sh $HOME/.bagpipe shamus.mtv
+
+test -f ~/.bagpipe/setup.sh && . ~/.bagpipe/setup.sh ~/.bagpipe shamus.mtv

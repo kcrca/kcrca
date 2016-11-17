@@ -156,6 +156,7 @@ alias ls >/dev/null && unalias ls
 #This makes it sort '.'s first, rather put (say) ".foo" next to "faz"
 alias ls="LANG=C ls"
 alias pm="open -a /Applications/Pixelmator.app"
+alias psd="open -a /Applications/Adobe\ Photoshop\ CC\ 2015/Adobe\ Photoshop\ CC\ 2015.app"
 
 zstyle -d ':cmd_notify:'
 zstyle ':cmd_notify:' notify-time 15
