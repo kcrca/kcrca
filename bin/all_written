@@ -50,8 +50,14 @@ epat="$rdirs"
 epat="${epat:gs,.,\\.}"
 epat="^(${epat:gs, ,|})"
 files=($(vi -r |& awk '
-            /file name: / { file=$3; sub("\\s*$", "", file) }
-	    /modified: YES/ { print(file) }
+	    /file name: / {
+	        file=$3;
+	        sub("\\s*$", "", file);
+	    }
+	    /modified: YES/ {
+		if (file !~ /^[[]/ && file !~ /[/].$/)
+		    print(file);
+	    }
 	'))
 files=(${~files})
 for d in $rdirs; do
