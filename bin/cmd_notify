@@ -39,17 +39,17 @@ if [[ $1 == "testing" ]]; then
     LC_TTY="fake_tty"
     tty=$LC_TTY
 else
-    tty=$TTY:t
+    tty="$TTY:t"
     if [[ $1 == -t ]]; then
-	    tty=$2
+	    tty="$2"
 	    shift 2
     fi
 
-    tm=$1 ; shift
-    st=$1 ; shift
+    tm="$1" ; shift
+    st="$1" ; shift
     cmd=("$@")
     if [[ $cmd == "-" ]]; then
-	read -A cmd
+        read -A cmd
     fi
 fi
 
@@ -69,6 +69,7 @@ if [[ ! -z $REMOTE_HOST && ! -z $LC_TTY ]]; then
     zstyle ':cmd_notify:' remote-port port
     port=${port:-10023}
     [[ $cmd == "testing" ]] && set -x
+    echo echo $LC_TTY $tm $st "$@" \| nc localhost $port '\r\n'
     echo $LC_TTY $tm $st "$@" | nc localhost $port
     exit 0
 fi
@@ -90,7 +91,6 @@ fi
 local -i secs=$((tm % 60))
 local -i mins=$((tm / 60))
 local timestr
-set -x
 [[ $cmd == "testing" ]] && set -x
 timestr=`printf 'Time: %d:%02d' $mins $secs`
 
