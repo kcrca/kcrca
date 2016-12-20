@@ -102,7 +102,7 @@ function cmd_notify_func() {
     tm=$hist[1]:s/://
 
     zstyle -s ':cmd_notify:' notify-time notify
-    if (( $tm >= $notify )); then
+    if [[ $tm != "" ]] && (( $tm >= $notify )); then
 	# cmd_notify checks for frontmost window, etc.
 	cmd_notify $tm $st "$last_cmd[@]" &!
     fi
