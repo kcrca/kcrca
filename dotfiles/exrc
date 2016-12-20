@@ -4,4 +4,5 @@ set tagrelative
 set tags=tags,./tags,../tags,../../tags,../../../tags,../../../../tags
 map  ?\/\*ma/\*\/kmb!'acmt''
 map  :'a,'bs/ *\\$//:'a,'bs/$/ \\/
+set spell spelllang=en_us spellfile=~/.vim/spell.en.utf-8.add
 syntax off

@@ -259,19 +259,18 @@ function vl
 
     local -a vargs
     vargs=()
-    local before=
+    local before="\v"
     local after=
     local opt
     while getopts ':iw' opt; do
         case $opt in
-	  i) before='\c' ;;
-	  w) before='<' ; after='>' ;;
+	  i) before+='\c' ;;
+	  w) before+='<' ; after+='>' ;;
 	esac
     done;
     shift `expr $OPTIND - 1`
     local pat="$1"
-    before='\v'"$before"
-    echo vi $vargs +/"$before$pat$after" "$l[@]"
+    echo -E + vi $vargs +/"$before$pat$after" "$l[@]"
     vi $vargs +/"$before$pat$after" "$l[@]"
 }
 

@@ -32,20 +32,25 @@
 # $LC_TTY are both set), it runs ssh $REMOTE_HOST cmd_notify -t $LC_TTY
 # with appropriate arguments.
 
-tty="$TTY"
-if [[ $1 == -t ]]; then
-	tty=$2
-	shift 2
-fi
-tty=$tty:t
+if [[ $1 == "testing" ]]; then
+    tm=1234
+    st=1
+    cmd=(testing)
+    LC_TTY="fake_tty"
+    tty=$LC_TTY
+else
+    tty="$TTY:t"
+    if [[ $1 == -t ]]; then
+	    tty="$2"
+	    shift 2
+    fi
 
-#DEBUG echo `hostname` "$0" "$@" '\r\n'
-
-tm=$1 ; shift
-st=$1 ; shift
-cmd=("$@")
-if [[ $cmd == "-" ]]; then
-    read -A cmd
+    tm="$1" ; shift
+    st="$1" ; shift
+    cmd=("$@")
+    if [[ $cmd == "-" ]]; then
+        read -A cmd
+    fi
 fi
 
 if zstyle -m ':cmd_notify:' ignore-cmd "$cmd[1]:t"; then
@@ -63,6 +68,7 @@ if [[ ! -z $REMOTE_HOST && ! -z $LC_TTY ]]; then
     #echo "$cmd[@]" | exec ssh -f $REMOTE_HOST cmd_notify -t $LC_TTY:t $tm $st -
     zstyle ':cmd_notify:' remote-port port
     port=${port:-10023}
+    [[ $cmd == "testing" ]] && set -x
     echo echo $LC_TTY $tm $st "$@" \| nc localhost $port '\r\n'
     echo $LC_TTY $tm $st "$@" | nc localhost $port
     exit 0
@@ -85,8 +91,15 @@ fi
 local -i secs=$((tm % 60))
 local -i mins=$((tm / 60))
 local timestr
+[[ $cmd == "testing" ]] && set -x
 timestr=`printf 'Time: %d:%02d' $mins $secs`
-(
-    echo $timestr
-    echo Status: $st
-) | growlnotify -n cmd_notify -s -- "$cmd[@]"
+
+if (( $+commands[growlnotify] )); then
+    growlnotify -n cmd_notify -s -- "$cmd[@]" << EOF
+Status: $st
+$timestr
+EOF
+else
+    cmd_str="$cmd[@]"
+    notify-send -c cmd_notify -t 5 "$cmd_str" "Status: $st, $timestr"
+fi
