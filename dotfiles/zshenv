@@ -175,18 +175,11 @@ function ereg
 
 function er
 {
-    if [[ x$1 = x-c ]]; then
-	shift
-	local f
-	for f in `ereg $k | error -n |& sed -n -e '/^File "/{' -e 's/File "//' -e 's/".*//p' -e '}' ` ; do
-	    test -w $f || cco -nc $f
-	done
-    fi
-    if [[ x$1 = x-i ]]; then
-	    ereg | error
-    else
-	    ereg | error -v
-    fi
+    dir="$PWD"
+    [[ -n $G4_TOP ]] && dir="$G4_TOP"
+    opts=""
+    [[ $1 == i ]] && opts="-v"
+    ereg | (cd $dir && error $opts)
 }
 
 # Set the value of "l" based on the output of grep
