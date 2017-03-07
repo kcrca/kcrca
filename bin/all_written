@@ -36,7 +36,9 @@ for dir in $swps; do
     modified+=($(cd $dir && vi -r |& awk '
 	    BEGIN { in_current = 0 }
 	    /In current directory:/ { in_current = 1 }
-	    in_current && /file name: (.*)/ { file = $3; sub("\\s*$", "", file) }
+	    /^[0-9]+\./ { file = "" }
+	    # The "[^[]" is because unnamed files come up as "[No name]"
+	    in_current && /file name: ([^[].*)/ { file = $3; sub("\\s*$", "", file) }
 	    in_current && /modified: YES/ { if (length(file) > 1) { printf("%s ", file) } }
 	    /In directory/ { in_current = 0 }
 	'))
@@ -55,7 +57,7 @@ files=($(vi -r |& awk '
 	        sub("\\s*$", "", file);
 	    }
 	    /modified: YES/ {
-		if (file !~ /^[[]/ && file !~ /[/].$/)
+		if (file !~ /^[[]/ && file !~ /[\/].$/)
 		    print(file);
 	    }
 	'))
