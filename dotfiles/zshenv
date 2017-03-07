@@ -50,8 +50,8 @@ unalias set unset
 function setpath {
     # Add the elements of $path not in the parameter list
     local -U -a newpath
-    newpath=("$@")
-    newpath+=("$path[@]")
+    newpath=("$path[@]")
+    newpath+=("$@")
     #echo $#newpath ; echo ${(F)newpath}
 
     # expand every "bin" to "sbin", and build new manpath/libpath
@@ -97,7 +97,7 @@ function realdirs {
     echo "$np[@]"
 }
 
-setpath . ~/bin ~/kcrca/bin ~/google/bin ~/homebrew/bin ~/maven/bin /usr/local/git/current/bin ~/.homebrew/bin ~/depot_tools $VIRTUAL_ENV_BIN /Library/Frameworks/Python.framework/Versions/2.7/bin /Developer/usr/bin /usr/X11R6/bin $JAVA_HOME/bin $M2_HOME/bin /usr/local/bin /bin /usr/bin /usr/local/ImageMagick/bin /opt/local/bin
+setpath . ~/bin ~/kcrca/bin ~/google/bin ~/homebrew/bin ~/maven/bin /usr/local/git/current/bin ~/depot_tools $VIRTUAL_ENV_BIN /Library/Frameworks/Python.framework/Versions/2.7/bin /Developer/usr/bin /usr/X11R6/bin $JAVA_HOME/bin $M2_HOME/bin /usr/local/bin /bin /usr/bin /usr/local/ImageMagick/bin /opt/local/bin
 
 export X11HOME=/usr/X11R6
 export X11R6HOME=/usr/X11R6
