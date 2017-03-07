@@ -55,7 +55,7 @@ files=($(vi -r |& awk '
 	        sub("\\s*$", "", file);
 	    }
 	    /modified: YES/ {
-		if (file !~ /^[[]/ && file !~ /[/].$/)
+		if (file !~ /^[[]/ && file !~ /[/]\.?.$/)
 		    print(file);
 	    }
 	'))
