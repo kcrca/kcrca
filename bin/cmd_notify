@@ -69,7 +69,7 @@ if [[ ! -z $REMOTE_HOST && ! -z $LC_TTY ]]; then
     zstyle ':cmd_notify:' remote-port port
     port=${port:-10023}
     [[ $cmd == "testing" ]] && set -x
-    #echo echo $LC_TTY $tm $st "$@" \| nc localhost $port '\r\n'
+    # echo echo $LC_TTY $tm $st "$@" \| nc localhost $port '\r\n'
     echo $LC_TTY $tm $st "$@" | nc localhost $port
     exit 0
 fi
