@@ -315,6 +315,13 @@ func zshhist_restore() {
 }
 
 export LC_TTY=${LC_TTY:-`tty`}
+# Put the terminal name in the title bar. For at least two terminal apps, I
+# don't know if this is used by any others.
+case $TERM_PROGRAM: in
+    Apple_Terminal*|iTerm.app*)
+	echo -n -e "\e]0;${LC_TTY:t}\a"
+	;;
+esac
 
 [[ -z "$XAUTHORITY" && -f ~/.Xauthority ]] && export XAUTHORITY=~/.Xauthority
 
