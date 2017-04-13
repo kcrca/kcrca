@@ -48,10 +48,11 @@ unalias set unset
 #	- For every */bin dir, add */sbin if it exists
 #	- Set the MANPATH and LD_LIBRARY_PATH to match (why shouldn't they?)
 function setpath {
-    # Add the elements of $path not in the parameter list
+    # Add the elements of $path not in the parameter list. Prefer the command
+    # line order, so add those first.
     local -U -a newpath
-    newpath=("$path[@]")
-    newpath+=("$@")
+    newpath=("$@")
+    newpath+=("$path[@]")
     #echo $#newpath ; echo ${(F)newpath}
 
     # expand every "bin" to "sbin", and build new manpath/libpath
