@@ -17,10 +17,4 @@ else
 fi
 export REMOTE_HOST DISPLAY
 
-exit() {
-    if tty -s; then
-	read -q do_exit'?Realy exit? '
-    fi
-}
-
 domain_source zlogin
