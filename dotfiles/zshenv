@@ -179,7 +179,7 @@ function er
     dir="$PWD"
     [[ -n $G4_TOP ]] && dir="$G4_TOP"
     opts=""
-    [[ $1 == i ]] && opts="-v"
+    [[ $1 != -i ]] && opts="-v" && shift
     ereg | (cd $dir && error $opts)
 }
 
