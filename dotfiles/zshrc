@@ -20,6 +20,9 @@ zstyle ':completion:*' cache-path ~/.zsh/cache
 export TOPSHLVL=${TOPSHLVL:-$SHLVL}
 
 build_prompt() {
+    # No need to rebuild the prompt if the dir hasn't changed
+    [[ $PWD == $build_prompt_last_dir ]] && return
+
     # The right-side prompt format is :user@host[vcs_info]:
 
     # If the user is known/expected, "user@" is ommitted
@@ -45,6 +48,7 @@ build_prompt() {
     PROMPT=${PROMPT:F:$lcnt:s,>,>>}
     PROMPT=${PROMPT:F:$lcnt:s,#,##}
     RPROMPT="%(0?..%S***%s ):$user%m%B$vcs_info%b:"
+    build_prompt_last_dir="$PWD"
 }
 
 autoload -Uz vcs_info
