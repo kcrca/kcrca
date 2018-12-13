@@ -47,3 +47,4 @@ autocmd BufReadPost *
 " Remember info about open buffers on close
 set viminfo^=%
 syntax on
+colorscheme slate

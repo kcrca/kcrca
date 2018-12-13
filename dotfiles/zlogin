@@ -13,8 +13,9 @@ else
 	  *:*) DISPLAY="$REMOTE_HOST"; REMOTE_HOST="$REMOTE_HOST:s,:.*,," ;;
 	  *)   DISPLAY="$REMOTE_HOST:0.0" ;;
 	esac
+	export DISPLAY
     fi
 fi
-export REMOTE_HOST DISPLAY
+export REMOTE_HOST
 
 domain_source zlogin

@@ -11,6 +11,10 @@ setopt HIST_ALLOW_CLOBBER	# in history, ">" becomes ">!"
 
 FIGNORE='~:.bak:.o:CVS'		# Ignore during file completion
 
+# Cache completion results to avoid reparsing.
+zstyle ':completion:*' use-cache on
+zstyle ':completion:*' cache-path ~/.zsh/cache
+
 # Remember the top-most shell level that has a prompt (expected this to always
 # be 1, but on the mac it's 2, counting the login program itself I think).
 export TOPSHLVL=${TOPSHLVL:-$SHLVL}
@@ -102,7 +106,7 @@ function cmd_notify_func() {
     tm=$hist[1]:s/://
 
     zstyle -s ':cmd_notify:' notify-time notify
-    if [[ $tm != "" ]] && (( $tm >= $notify )); then
+    if (( $tm >= $notify )); then
 	# cmd_notify checks for frontmost window, etc.
 	cmd_notify $tm $st "$last_cmd[@]" &!
     fi
@@ -280,8 +284,9 @@ pdr() {
 # The directory ~/.zsh_hist must exist or nothing will be done
 func zshhist_path() {
 	local f
-	if [[ $LC_TTY == "" ]]; then return; fi
-	f=~/.zsh_hist/${LC_TTY:gs,/,_}
+	base=${LC_TMUX:-${LC_TTY:-""}}
+	if [[ $base == "" ]]; then return; fi
+	f=~/.zsh_hist/${base:gs,/,_}
 	f=${f:s,/_,/}
 	echo $f
 }
@@ -329,4 +334,10 @@ domain_source zshrc
 
 test -f ~/.bagpipe/setup.sh && . ~/.bagpipe/setup.sh ~/.bagpipe shamus.mtv
 
-test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
+#test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
+
+PATH="/usr/local/google/home/kcrca/perl5/bin${PATH:+:${PATH}}"; export PATH;
+PERL5LIB="/usr/local/google/home/kcrca/perl5/lib/perl5${PERL5LIB:+:${PERL5LIB}}"; export PERL5LIB;
+PERL_LOCAL_LIB_ROOT="/usr/local/google/home/kcrca/perl5${PERL_LOCAL_LIB_ROOT:+:${PERL_LOCAL_LIB_ROOT}}"; export PERL_LOCAL_LIB_ROOT;
+PERL_MB_OPT="--install_base \"/usr/local/google/home/kcrca/perl5\""; export PERL_MB_OPT;
+PERL_MM_OPT="INSTALL_BASE=/usr/local/google/home/kcrca/perl5"; export PERL_MM_OPT;

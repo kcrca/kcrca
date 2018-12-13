@@ -146,7 +146,7 @@ alias z=suspend
 alias pd=pushd
 alias po=popd
 alias beep='echo -n '
-alias bigbeep='beep ; test -z "$DISPLAY" || xclock -geom 500x500+0+0'
+#alias bigbeep='beep ; test -z "$DISPLAY" || xclock -geom 500x500+0+0'
 alias tell=rcstell
 alias rs=". ~/.zshenv ; . ~/.zshrc ; . ~/.zlogin"
 alias ant='/usr/local/ant/bin/ant'
@@ -160,7 +160,7 @@ alias pm="open -a /Applications/Pixelmator.app"
 alias psd="open -a /Applications/Adobe\ Photoshop\ CC\ 2015/Adobe\ Photoshop\ CC\ 2015.app"
 
 zstyle -d ':cmd_notify:'
-zstyle ':cmd_notify:' notify-time 15
+zstyle ':cmd_notify:' notify-time 1000
 zstyle ':cmd_notify:' ignore-cmd man vl vi ex vim ssh dev er
 zstyle ':cmd_notify:' frontmost-command frontmost.applescript
 zstyle ':cmd_notify:' remote-port 10023
@@ -320,8 +320,6 @@ function domain_source
 
 typeset -U fpath
 
-domain_source zshenv
-
 XTERM=/usr/bin/X11/xterm
 
 export GNU_SECURE=~/.rhosts
@@ -337,3 +335,5 @@ export JINI_HOME=/usr/local/jini
 export STUDIO_VM_OPTIONS=~/studio64.vmoptions
 
 test -z "$DISPLAY" && export DISPLAY=:0.0
+
+domain_source zshenv
