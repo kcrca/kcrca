@@ -301,8 +301,8 @@ function domain_source
 {
     src=${1:t}
     src=${src#.}
-    # The sed is to alias .googles.com et al to .google.com
-    local domains=`hostname -f | sed -r -e 's/\.(googlers|googleplex)\./.google./'`
+    # The sed is to alias .googlers.com et al to .google.com
+    local domains=`hostname -f | sed -E 's/\.(googlers|googleplex)\./.google./'`
     if [[ -z "$domains" ]]; then
     	return
     fi
