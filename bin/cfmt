@@ -13,4 +13,4 @@ fmt=fmt
 if which gfmt >/dev/null; then
         fmt=gfmt
 fi
-exec $fmt -w80 -p"$prefix" "$@" | sed -e '/^\s*\/\//s,\.  ,\. ,g'
+exec $fmt -c -w80 -p"$prefix" "$@" | sed -e "\,^\s*$prefix,s,\.  ,\. ,g"

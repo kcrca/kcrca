@@ -98,7 +98,8 @@ function cmd_notify_func() {
     st=$?
     (( cmd_notify_checked )) && return
 
-    hist=(`fc -l -D -n -1 -1`)
+    # Suppress warning messges, handle tm="" later.
+    hist=(`fc -l -D -n -1 -1 2>/dev/null`)
     tm=$hist[1]:s/://
 
     zstyle -s ':cmd_notify:' notify-time notify
@@ -327,6 +328,6 @@ esac
 
 domain_source zshrc
 
-test -f ~/.bagpipe/setup.sh && . ~/.bagpipe/setup.sh ~/.bagpipe shamus.mtv
+#test -f ~/.bagpipe/setup.sh && . ~/.bagpipe/setup.sh ~/.bagpipe shamus.svl
 
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"

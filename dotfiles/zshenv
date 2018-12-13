@@ -98,7 +98,7 @@ function realdirs {
     echo "$np[@]"
 }
 
-setpath . ~/bin ~/kcrca/bin ~/google/bin ~/homebrew/bin ~/maven/bin ~/google-cloud-sdk/bin ~/depot_tools /usr/local/git/current/bin $VIRTUAL_ENV_BIN /Library/Frameworks/Python.framework/Versions/2.7/bin /Developer/usr/bin /usr/X11R6/bin $JAVA_HOME/bin $M2_HOME/bin /usr/local/bin /bin /usr/bin /usr/local/ImageMagick/bin /opt/local/bin
+setpath ~/bin ~/kcrca/bin ~/google/bin ~/homebrew/bin ~/maven/bin ~/google-cloud-sdk/bin ~/depot_tools /usr/local/git/current/bin $VIRTUAL_ENV_BIN /Library/Frameworks/Python.framework/Versions/2.7/bin /Developer/usr/bin /usr/X11R6/bin $JAVA_HOME/bin $M2_HOME/bin /usr/local/bin /bin /usr/bin /usr/local/ImageMagick/bin /opt/local/bin .
 
 export X11HOME=/usr/X11R6
 export X11R6HOME=/usr/X11R6
@@ -157,7 +157,7 @@ alias ls >/dev/null && unalias ls
 #This makes it sort '.'s first, rather put (say) ".foo" next to "faz"
 alias ls="LANG=C ls"
 alias pm="open -a /Applications/Pixelmator.app"
-alias psd="open -a /Applications/Adobe\ Photoshop\ CC\ 2015/Adobe\ Photoshop\ CC\ 2015.app"
+alias psd="open -a Adobe\ Photoshop\ CC\ 2019"
 
 zstyle -d ':cmd_notify:'
 zstyle ':cmd_notify:' notify-time 15
