@@ -6,4 +6,5 @@
 .*.swp
 *.o
 src/error/error
+bin/error
 tags

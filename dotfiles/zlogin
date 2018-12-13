@@ -5,7 +5,7 @@ if [[ ! -z $SSH_CLIENT ]]; then
 else
     # for some reason, who am i sometimes says "(  )" for local ttys, which
     # confuses the checks below, so we strip out such constructs
-    wai=(`who am i | sed -e '/[()]/s///g' -e 's/ *$//'`)
+    local wai=(`who am i | sed -e '/[()]/s///g' -e 's/ *$//'`)
     if [[ ! -z "$wai[6]" ]]; then
 	REMOTE_HOST=$wai[6]
 	REMOTE_HOST=${REMOTE_HOST:gs,(,,}
