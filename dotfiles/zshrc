@@ -19,6 +19,8 @@ zstyle ':completion:*' cache-path ~/.zsh/cache
 # be 1, but on the mac it's 2, counting the login program itself I think).
 export TOPSHLVL=${TOPSHLVL:-$SHLVL}
 
+# Always start with a new dir and rebuild. This makes rs also a prompt refresh
+unset build_prompt_last_dir
 build_prompt() {
     # No need to rebuild the prompt if the dir hasn't changed
     [[ $PWD == $build_prompt_last_dir ]] && return
