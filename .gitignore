@@ -2,9 +2,11 @@
 ?
 .?
 *.bak
+bak
 .idea
 .*.swp
 *.o
 src/error/error
 bin/error
 tags
+lib
