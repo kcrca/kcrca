@@ -1,0 +1,5 @@
+#!/bin/sh
+
+cd $HOME/'Library/Application Support/minecraft/saves'
+hdir=`dirname $0`/../lib
+java --module-path $hdir/javafx-sdk-11.0.2 --add-modules ALL-MODULE-PATH -jar $hdir/mcaselector-1.12.2.jar
