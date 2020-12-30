@@ -20,6 +20,7 @@ set	HIST_IGNORE_DUPS	# Don't add dup commands to history
 set	IGNOREEOF		# Require "exit"
 unset	INTERACTIVE_COMMENTS	# Allow '#' at the beginning of lines
 set	LIST_TYPES		# Show types of files in completion
+set	LIST_PACKED		# Vary completion choices column widths
 set	LONG_LIST_JOBS		# Use long job list by default
 set	MARKDIRS		# Show dir / when expanding
 unset	MENU_COMPLETE		# Rotate through possible matches when ambig
@@ -35,6 +36,7 @@ unset	PUSHD_SILENT		# Don't print stack
 unset	PUSHD_TO_HOME		# pushd with no args goes home
 set	RC_QUOTES		# Let '' in single quotes mean a single quote
 set	SUN_KEYBOARD_HACK	# Ignore unmatched ` at end of line
+set     nomatch
 
 unalias set unset
 
@@ -98,7 +100,7 @@ function realdirs {
     echo "$np[@]"
 }
 
-setpath ~/bin ~/kcrca/bin ~/google/bin ~/homebrew/bin ~/maven/bin ~/google-cloud-sdk/bin ~/depot_tools /usr/local/git/current/bin $VIRTUAL_ENV_BIN /Library/Frameworks/Python.framework/Versions/2.7/bin /Developer/usr/bin /usr/X11R6/bin $JAVA_HOME/bin $M2_HOME/bin /usr/local/bin /bin /usr/bin /usr/local/ImageMagick/bin /opt/local/bin .
+setpath ~/bin ~/kcrca/bin ~/google/bin ~/homebrew/bin ~/maven/bin ~/google-cloud-sdk/bin /usr/local/git/current/bin $VIRTUAL_ENV_BIN /Library/Frameworks/Python.framework/Versions/2.7/bin /Developer/usr/bin /usr/X11R6/bin $JAVA_HOME/bin $M2_HOME/bin /usr/local/bin /bin /usr/bin /usr/local/ImageMagick/bin /opt/local/bin .
 
 export X11HOME=/usr/X11R6
 export X11R6HOME=/usr/X11R6
@@ -157,7 +159,13 @@ alias ls >/dev/null && unalias ls
 #This makes it sort '.'s first, rather put (say) ".foo" next to "faz"
 alias ls="LANG=C ls"
 alias pm="open -a /Applications/Pixelmator.app"
-alias psd="open -a Adobe\ Photoshop\ CC\ 2019"
+alias psd="open -a 'Adobe Photoshop 2021'"
+
+if [[ -d "/Applications/Pixelmator Pro.app" ]]; then
+    alias pxm="open -a Pixelmator\ Pro"
+else
+    alias pxm="open -a Pixelmator"
+fi
 
 zstyle -d ':cmd_notify:'
 zstyle ':cmd_notify:' notify-time 1000
@@ -187,6 +195,7 @@ function er
 # Set the value of "l" based on the output of grep
 function _setl
 {
+    set -x
     local cmd=$1 ; shift
 
     # gather up options to pass on to grep
@@ -224,6 +233,7 @@ function _setl
 	echo '"'"$pat"'"' not found 1>&2
 	return 1
     fi
+    set +x
 }
 
 function setl
@@ -319,6 +329,7 @@ function domain_source
     return 0
 }
 
+typeset -U path
 typeset -U fpath
 
 XTERM=/usr/bin/X11/xterm

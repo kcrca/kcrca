@@ -88,14 +88,15 @@ if zstyle -m ':cmd_notify:' silent-frontmost "$fmapp" || [[ $fmwin =~ "$tty" ]];
     exit 0
 fi
 
+[[ $cmd == "testing" ]] && set -x
 local -i secs=$((tm % 60))
 local -i mins=$((tm / 60))
 local timestr
-[[ $cmd == "testing" ]] && set -x
+cmd_str="$cmd[@]"
 timestr=`printf 'Time: %d:%02d' $mins $secs`
 
 if (( $+commands[growlnotify] )); then
-    growlnotify -n cmd_notify -s -- "$cmd[@]" << EOF
+    growlnotify -n cmd_notify -s -- "$cmd_str" << EOF
 Status: $st
 $timestr
 EOF

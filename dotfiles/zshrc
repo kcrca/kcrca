@@ -19,11 +19,18 @@ zstyle ':completion:*' cache-path ~/.zsh/cache
 # be 1, but on the mac it's 2, counting the login program itself I think).
 export TOPSHLVL=${TOPSHLVL:-$SHLVL}
 
+need_prompt_rebuild() {
+    [[ $PWD != $build_prompt_last_dir ]] && return 0
+    case "!^" in
+	git|hg|sccs|p4) return 1;;
+    esac
+    return 0
+}
+
 # Always start with a new dir and rebuild. This makes rs also a prompt refresh
 unset build_prompt_last_dir
 build_prompt() {
     # No need to rebuild the prompt if the dir hasn't changed
-    [[ $PWD == $build_prompt_last_dir ]] && return
 
     # The right-side prompt format is :user@host[vcs_info]:
 
@@ -54,6 +61,7 @@ build_prompt() {
 }
 
 autoload -Uz vcs_info
+zstyle ':vcs_info:*' enable git hg p4 svn g4
 zstyle ':vcs_info:*' formats '%r/%b'
 zstyle ':vcs_info:*' actionformats '%r/%b'
 
@@ -150,8 +158,7 @@ zstyle ':completion:*' completer _complete _ignored
 zstyle :compinstall filename ~/.zshrc
 
 autoload -Uz compinit
-compinit -u
-which bashcompinit >/dev/null && bashcompinit
+compinit
 # End of lines added by compinstall
 
 # Quote URL's on the command line automatically

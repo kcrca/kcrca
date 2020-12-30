@@ -10,6 +10,8 @@ done
 shift `expr $OPTIND - 1`
 
 fmt=fmt
+# On the Mac the formatter we need is named gfmt
+# brew install coreutils
 if which gfmt >/dev/null; then
         fmt=gfmt
 fi
