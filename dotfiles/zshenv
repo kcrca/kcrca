@@ -195,8 +195,14 @@ function er
 # Set the value of "l" based on the output of grep
 function _setl
 {
-    set -x
     local cmd=$1 ; shift
+
+    # '-r' is our option, not grep's
+    recurse=0
+    if [[ $1 =~ '-.*' ]]; then
+	recurse=1
+	shift
+    fi
 
     # gather up options to pass on to grep
     # not using getopts because that breaks things apart
@@ -226,14 +232,17 @@ function _setl
 	echo usage: $cmd pattern file ... 1>&2
 	return 1
     fi
-    l=(`echo "$@" | sed -e 's/ /\\ /g' | xargs egrep -Hsl "$opts[@]" "$pat" 2>/dev/null | tr '\012' ' '`)
+    if (( $recurse )); then
+	l=$(find $@ -type f -print0 | xargs -0 egrep -sl "$opts[@]" "$pat")
+    else
+	l=$(egrep -sl "$opts[@]" "$pat" $@ 2>/dev/null)
+    fi
     if [[ x"$l" != x ]]; then
 	echo "$l[@]"
     else
 	echo '"'"$pat"'"' not found 1>&2
 	return 1
     fi
-    set +x
 }
 
 function setl
