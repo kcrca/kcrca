@@ -61,7 +61,7 @@ build_prompt() {
 }
 
 autoload -Uz vcs_info
-zstyle ':vcs_info:*' enable git hg p4 svn g4
+zstyle ':vcs_info:*' enable git hg p4 svn
 zstyle ':vcs_info:*' formats '%r/%b'
 zstyle ':vcs_info:*' actionformats '%r/%b'
 
