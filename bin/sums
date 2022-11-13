@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import sys
 
@@ -42,13 +42,13 @@ def set_str(s):
     return ''.join(map(lambda i: '%s ' % i if i in set(s) else '. ', range(1, 10)))
 
 
-for s in solutions:
-    print set_str(s)
-    if s == solutions[0]:
+for i, s in enumerate(solutions):
+    print(set_str(s))
+    if i == 0:
         shared = set(s)
     else:
         shared &= set(s)
 shared.discard(include)
 if len(shared) > 0:
-    print set_str(shared), 'shared'
-print '\n' + '\n'.join([''.join(map(str, x)) for x in solutions])
+    print(set_str(shared), 'shared')
+print('\n' + '\n'.join([''.join(map(str, x)) for x in solutions]))

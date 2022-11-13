@@ -1,9 +1,11 @@
 #!/bin/sh
 
 prefix='//'
-while getopts p: o; do
+width=80
+while getopts w:p: o; do
       case "$o" in
         p) prefix="$OPTARG" ;;
+        w) width="$OPTARG" ;;
         \?) echo "Invalid option: -$OPTARG" >&2 ;;
     esac
 done
@@ -15,4 +17,4 @@ fmt=fmt
 if which gfmt >/dev/null; then
         fmt=gfmt
 fi
-exec $fmt -c -w80 -p"$prefix" "$@" | sed -e "\,^\s*$prefix,s,\.  ,\. ,g"
+exec $fmt -c -w$width -p"$prefix" "$@" | sed -e "\,^\s*$prefix,s,\.  ,\. ,g"

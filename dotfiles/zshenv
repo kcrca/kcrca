@@ -100,7 +100,8 @@ function realdirs {
     echo "$np[@]"
 }
 
-setpath ~/bin ~/kcrca/bin ~/google/bin /usr/local/bin ~/homebrew/bin ~/maven/bin ~/google-cloud-sdk/bin /usr/local/git/current/bin $VIRTUAL_ENV_BIN /usr/X11R6/bin $JAVA_HOME/bin $M2_HOME/bin /bin /usr/bin /usr/local/ImageMagick/bin /opt/local/bin .
+
+setpath ~/bin ~/kcrca/bin ~/google/bin ~/.poetry/bin /usr/local/bin ~/homebrew/bin ~/maven/bin ~/google-cloud-sdk/bin /usr/local/git/current/bin $VIRTUAL_ENV_BIN /usr/X11R6/bin $JAVA_HOME/bin $M2_HOME/bin /bin /usr/bin /usr/local/ImageMagick/bin /opt/local/bin .
 
 export X11HOME=/usr/X11R6
 export X11R6HOME=/usr/X11R6
@@ -159,7 +160,7 @@ alias ls >/dev/null && unalias ls
 #This makes it sort '.'s first, rather put (say) ".foo" next to "faz"
 alias ls="LANG=C ls"
 alias pm="open -a /Applications/Pixelmator.app"
-alias psd="open -a 'Adobe Photoshop 2021'"
+alias psd="open -a 'Adobe Photoshop 2023'"
 alias pxm="pxm -a 'Pixelmater Pro'"
 
 if [[ -d "/Applications/Pixelmator Pro.app" ]]; then
@@ -361,5 +362,3 @@ test -z "$DISPLAY" && export DISPLAY=:0.0
 
 domain_source zshenv
 
-# Set up poetry, a python release management process https://python-poetry.org/docs/
-alias poetry=~/Library/Python/3.6/bin/poetry
