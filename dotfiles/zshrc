@@ -61,7 +61,7 @@ build_prompt() {
 }
 
 autoload -Uz vcs_info
-zstyle ':vcs_info:*' enable git hg p4 svn
+zstyle ':vcs_info:*' enable git hg p4 svn g4
 zstyle ':vcs_info:*' formats '%r/%b'
 zstyle ':vcs_info:*' actionformats '%r/%b'
 
@@ -341,6 +341,13 @@ case $TERM_PROGRAM: in
 	echo -n -e "\e]0;${LC_TTY:t}\a"
 	;;
 esac
+
+if which pbcopy >& /dev/null; then
+    :
+else
+    alias pbcopy='xclip -selection clipboard'
+    alias pbpaste='xclip -selection clipboard -o'
+fi
 
 [[ -z "$XAUTHORITY" && -f ~/.Xauthority ]] && export XAUTHORITY=~/.Xauthority
 
