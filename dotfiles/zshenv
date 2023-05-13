@@ -101,7 +101,7 @@ function realdirs {
 }
 
 
-setpath ~/bin ~/kcrca/bin ~/google/bin ~/.poetry/bin /usr/local/bin ~/homebrew/bin ~/maven/bin ~/google-cloud-sdk/bin /usr/local/git/current/bin $VIRTUAL_ENV_BIN /usr/X11R6/bin $JAVA_HOME/bin $M2_HOME/bin /bin /usr/bin /usr/local/ImageMagick/bin /opt/local/bin .
+setpath ~/bin ~/kcrca/bin ~/google/bin ~/.poetry/bin /usr/local/bin ~/homebrew/bin /opt/homebrew/bin ~/maven/bin ~/google-cloud-sdk/bin /usr/local/git/current/bin $VIRTUAL_ENV_BIN /usr/X11R6/bin $JAVA_HOME/bin $M2_HOME/bin /bin /usr/bin /usr/local/ImageMagick/bin /opt/local/bin .
 
 export X11HOME=/usr/X11R6
 export X11R6HOME=/usr/X11R6
@@ -165,7 +165,7 @@ alias pxm="pxm -a 'Pixelmater Pro'"
 
 if [[ -d "/Applications/Pixelmator Pro.app" ]]; then
     #alias pxm="open -a Pixelmator\ Pro"
-    alias pxm="open -a Pixelmator"
+    alias pxm="open -a Pixelmator\ Pro"
 else
     alias pxm="open -a Pixelmator"
 fi
